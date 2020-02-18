@@ -149,7 +149,7 @@ public class ElasticRequestHandler
         }
     }
 
-    GetIndexResponse getIndex(final String indexName) throws IOException, IndexNotFoundException
+    public GetIndexResponse getIndex(final String indexName) throws IOException, IndexNotFoundException
     {
         LOGGER.info("Get index {}", indexName);
         final Request request = new Request("GET", "/" + indexName);

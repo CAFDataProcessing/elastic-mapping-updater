@@ -15,6 +15,7 @@
  */
 package com.github.cafdataprocessing.elastic.tools.test;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -22,6 +23,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.http.HttpHost;
@@ -34,19 +36,21 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.PutIndexTemplateRequest;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.cafdataprocessing.elastic.tools.ElasticMappingUpdater;
+import com.github.cafdataprocessing.elastic.tools.ElasticRequestHandler;
 import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
@@ -68,7 +72,7 @@ public class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateIndexesOfUpdatedTemplate() throws IOException
+    public void testUpdateIndexesOfUpdatedTemplate() throws IOException, IndexNotFoundException
     {
         LOGGER.info("Running test 'testUpdateIndexesOfUpdatedTemplate'...");
         final String templateName = "sample-template";
@@ -122,6 +126,14 @@ public class ElasticMappingUpdaterIT
         LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating indexes matching template {}", templateName);
         updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName);
 
+        // Verify index mapping has new properties
+        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> propMapping = (Map<String, Object>)props.get("DATE_DISPOSED");
+        assertNotNull("testUpdateIndexesOfUpdatedTemplate", propMapping);
+
         // Index more data
         request = new IndexRequest(indexName);
         request.id("2");
@@ -151,11 +163,12 @@ public class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateUnsupportedChanges() throws IOException
+    public void testUpdateUnsupportedChanges() throws IOException, IndexNotFoundException
     {
         LOGGER.info("Running test 'testUpdateUnsupportedChanges'...");
         final String templateName = "acme-sample-template";
         final String origTemplateSourceFile = "/template3.json";
+        // This template has modified "type" param for IS_HEAD_OF_FAMILY and FAILURES/AJP_JOB_RUN_ID
         final String unsupportedTemplateSourceFile = "/template4.json";
         final String indexName = "test_acmesample-000001";
 
@@ -210,14 +223,26 @@ public class ElasticMappingUpdaterIT
         LOGGER.info("testUpdateUnsupportedChanges - Updating indexes matching template {}", templateName);
         // No changes to Index mapping
         updateIndex("testUpdateUnsupportedChanges", templateName);
+
+        // Verify index mapping has not changed
+        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> propMapping = (Map<String, Object>)props.get("IS_HEAD_OF_FAMILY");
+        final String propValue = (String)propMapping.get("type");
+        // Verify property mapping value is same as before
+        assertTrue("testUpdateUnsupportedChanges", propValue.equals("boolean"));
     }
 
     @Test
-    public void testUpdateDynamicTemplateOverwrite() throws IOException
+    public void testUpdateDynamicTemplateOverwrite() throws IOException, IndexNotFoundException
     {
         LOGGER.info("Running test 'testUpdateDynamicTemplateOverwrite'...");
         final String templateName = "sample-template";
+        // This template has a dynamic_templaten called "EVERY_THING_ELSE_TEMPLATE"
         final String origTemplateSourceFile = "/template5.json";
+        // This template has a dynamic_templaten called "LONG_TEMPLATE"
         final String updatedTemplateSourceFile = "/template6.json";
         final String indexName = "test_dynsample-000001";
 
@@ -271,6 +296,21 @@ public class ElasticMappingUpdaterIT
 
         LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating indexes matching template {}", templateName);
         updateIndex("testUpdateDynamicTemplateOverwrite", templateName);
+
+        // Verify updated index mapping has only one dynamic_template from the new index template
+        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        Object dynamicTemplatesInTemplate = indexTypeMappings.get("dynamic_templates");
+        if (dynamicTemplatesInTemplate == null)
+        {
+            fail();
+        }
+        else
+        {
+            @SuppressWarnings("unchecked")
+            final Map<String, Object> dynTemplate = (Map<String, Object>)((List<Map<String, Object>>)dynamicTemplatesInTemplate).get(0);
+            assertTrue("testUpdateDynamicTemplateOverwrite", dynTemplate.size() == 1);
+            assertNotNull("testUpdateDynamicTemplateOverwrite", dynTemplate.get("LONG_TEMPLATE"));
+        }
 
         // Index more data
         request = new IndexRequest(indexName);
@@ -364,5 +404,16 @@ public class ElasticMappingUpdaterIT
             final Map<String, Object> sourceAsMap = hit.getSourceAsMap();
             LOGGER.info("hit : {}", sourceAsMap);
         }
+    }
+
+    private Map<String, Object> getIndexMapping(final String indexName) throws IOException, IndexNotFoundException
+    {
+        final ElasticRequestHandler elasticRequestHandler = indexUpdater.getElasticRequestHandler();
+        // Get the index mapping
+        final GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
+        final MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
+        final Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
+        LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
+        return indexTypeMappings;
     }
 }

@@ -48,7 +48,7 @@ public class ElasticMappingUpdater
     private static String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
 
     private final ObjectMapper objectMapper;
-    private final ElasticRequestHandler elasticRequestHandler;
+    public final ElasticRequestHandler elasticRequestHandler;
 
     public ElasticMappingUpdater()
     {
@@ -68,6 +68,11 @@ public class ElasticMappingUpdater
         final ElasticMappingUpdater updater = new ElasticMappingUpdater();
         updater.updateIndexes();
         System.exit(0);
+    }
+
+    public ElasticRequestHandler getElasticRequestHandler()
+    {
+        return this.elasticRequestHandler;
     }
 
     public void updateIndexes() throws IOException, UnexpectedResponseException, TemplateNotFoundException, IndexNotFoundException
