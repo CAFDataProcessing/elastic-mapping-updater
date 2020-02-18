@@ -13,19 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools;
+package com.github.cafdataprocessing.elastic.tools.exceptions;
 
-public class ElasticMappingUpdaterConfiguration
-{
-    private final ElasticSettings elasticSettings;
+public final class IndexNotFoundException extends Exception {
 
-    public ElasticMappingUpdaterConfiguration(final ElasticSettings elasticSettings)
-    {
-        this.elasticSettings = elasticSettings;
+    private static final long serialVersionUID = -1301168003826072993L;
+
+    public IndexNotFoundException(final String message) {
+        super(message);
     }
 
-    public ElasticSettings getElasticSettings()
-    {
-        return elasticSettings;
-    }
 }

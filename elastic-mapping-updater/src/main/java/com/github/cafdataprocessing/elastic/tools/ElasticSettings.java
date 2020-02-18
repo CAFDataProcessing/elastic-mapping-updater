@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools;
+package com.github.cafdataprocessing.elastic.tools;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools;
+package com.github.cafdataprocessing.elastic.tools;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,14 +30,14 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.UnsupportedMappingChangesException;
+import com.github.cafdataprocessing.elastic.tools.utils.FlatMapUtil;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
-import com.microfocus.caf.elastic.tools.exceptions.IndexNotFoundException;
-import com.microfocus.caf.elastic.tools.exceptions.TemplateNotFoundException;
-import com.microfocus.caf.elastic.tools.exceptions.UnexpectedResponseException;
-import com.microfocus.caf.elastic.tools.exceptions.UnsupportedMappingChangesException;
-import com.microfocus.caf.elastic.tools.utils.FlatMapUtil;
 
 public class ElasticMappingUpdater
 {

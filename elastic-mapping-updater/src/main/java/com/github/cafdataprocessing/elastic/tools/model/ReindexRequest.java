@@ -13,14 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools.exceptions;
+package com.github.cafdataprocessing.elastic.tools.model;
 
-public final class UnsupportedMappingChangesException extends Exception {
+public final class ReindexRequest {
+    private final String sourceIndex;
+    private final String destinaltionIndex;
 
-    private static final long serialVersionUID = 693770660322331827L;
-
-    public UnsupportedMappingChangesException(final String message)
-    {
-        super(message);
+    public ReindexRequest(String sourceIndex, String destinaltionIndex) {
+        super();
+        this.sourceIndex = sourceIndex;
+        this.destinaltionIndex = destinaltionIndex;
     }
+
+    public String getSourceIndex() {
+        return sourceIndex;
+    }
+
+    public String getDestinaltionIndex() {
+        return destinaltionIndex;
+    }
+
 }

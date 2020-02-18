@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools.exceptions;
+package com.github.cafdataprocessing.elastic.tools.exceptions;
 
-public final class UnexpectedResponseException extends Exception
-{
-    private static final long serialVersionUID = 6034011133535625670L;
+public final class UnsupportedMappingChangesException extends Exception {
 
-    public UnexpectedResponseException(final String message)
+    private static final long serialVersionUID = 693770660322331827L;
+
+    public UnsupportedMappingChangesException(final String message)
     {
         super(message);
     }

@@ -13,15 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools.exceptions;
+package com.github.cafdataprocessing.elastic.tools.exceptions;
 
-public final class TemplateNotFoundException extends Exception {
+public final class UnexpectedResponseException extends Exception
+{
+    private static final long serialVersionUID = 6034011133535625670L;
 
-    private static final long serialVersionUID = -1519913850609140958L;
-
-    public TemplateNotFoundException(final String message)
+    public UnexpectedResponseException(final String message)
     {
         super(message);
     }
-
 }

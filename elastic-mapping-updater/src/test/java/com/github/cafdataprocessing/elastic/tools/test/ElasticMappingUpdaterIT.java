@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools.test;
+package com.github.cafdataprocessing.elastic.tools.test;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -46,10 +46,10 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.microfocus.caf.elastic.tools.ElasticMappingUpdater;
-import com.microfocus.caf.elastic.tools.exceptions.IndexNotFoundException;
-import com.microfocus.caf.elastic.tools.exceptions.TemplateNotFoundException;
-import com.microfocus.caf.elastic.tools.exceptions.UnexpectedResponseException;
+import com.github.cafdataprocessing.elastic.tools.ElasticMappingUpdater;
+import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 
 public class ElasticMappingUpdaterIT
 {

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools;
+package com.github.cafdataprocessing.elastic.tools;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,9 +43,9 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microfocus.caf.elastic.tools.exceptions.IndexNotFoundException;
-import com.microfocus.caf.elastic.tools.exceptions.TemplateNotFoundException;
-import com.microfocus.caf.elastic.tools.exceptions.UnexpectedResponseException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 
 public class ElasticRequestHandler
 {

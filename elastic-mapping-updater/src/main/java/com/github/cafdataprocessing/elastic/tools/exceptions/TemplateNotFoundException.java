@@ -13,24 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.microfocus.caf.elastic.tools.model;
+package com.github.cafdataprocessing.elastic.tools.exceptions;
 
-public final class ReindexRequest {
-    private final String sourceIndex;
-    private final String destinaltionIndex;
+public final class TemplateNotFoundException extends Exception {
 
-    public ReindexRequest(String sourceIndex, String destinaltionIndex) {
-        super();
-        this.sourceIndex = sourceIndex;
-        this.destinaltionIndex = destinaltionIndex;
-    }
+    private static final long serialVersionUID = -1519913850609140958L;
 
-    public String getSourceIndex() {
-        return sourceIndex;
-    }
-
-    public String getDestinaltionIndex() {
-        return destinaltionIndex;
+    public TemplateNotFoundException(final String message)
+    {
+        super(message);
     }
 
 }
