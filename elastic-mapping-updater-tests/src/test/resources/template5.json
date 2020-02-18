@@ -80,7 +80,19 @@
       "_routing" : {
         "required" : true
       },
-      "dynamic": "strict",
+      "dynamic_templates" : [
+        {
+          "EVERY_THING_ELSE_TEMPLATE" : {
+            "match" : "*",
+            "mapping" : {
+              "doc_values" : false,
+              "index" : false,
+              "store" : false,
+              "type" : "text"
+            }
+          }
+        }
+      ],
       "properties" : {
         "FAILURES" : {
           "properties" : {
@@ -115,10 +127,6 @@
               "type" : "keyword",
               "ignore_above" : 256
             },
-            "STACK" : {
-              "type" : "text",
-              "analyzer" : "general_analyzer"
-            },
             "WORKFLOW_ACTION" : {
               "type" : "keyword",
               "ignore_above" : 32
@@ -134,26 +142,6 @@
             "NAME" : {
               "type" : "keyword",
               "ignore_above" : 20
-            },
-            "AGE" : {
-                "type" : "long",
-                "ignore_malformed" : true
-            }
-          }
-        },
-        "HOLD_DETAILS" : {
-          "type" : "nested",
-          "properties" : {
-            "FIRST_HELD_DATE" : {
-              "type" : "date",
-              "format" : "strict_date_optional_time||epoch_second"
-            },
-            "HOLD_HISTORY" : {
-              "type" : "date",
-              "format" : "strict_date_optional_time||epoch_second"
-            },
-            "HOLD_ID" : {
-              "type" : "text"
             }
           }
         },
@@ -170,20 +158,15 @@
           "analyzer" : "path_analyzer"
         },
         "IS_HEAD_OF_FAMILY" : {
-          "type" : "long",
-          "ignore_malformed" : true
+          "type" : "boolean"
         },
         "DATE_PROCESSED" : {
-          "type" : "date",
-          "format" : "strict_date_optional_time||epoch_second"
-        },
-        "DATE_DISPOSED" : {
           "type" : "date",
           "format" : "strict_date_optional_time||epoch_second"
         }
       }
     },
     "index_patterns": [
-        "*_acmesample-*"
+        "*_dynsample-*"
     ]
   }

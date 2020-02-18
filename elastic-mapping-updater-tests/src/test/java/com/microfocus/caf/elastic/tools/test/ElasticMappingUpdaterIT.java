@@ -70,6 +70,7 @@ public class ElasticMappingUpdaterIT
     @Ignore
     public void testUpdateIndexesOfOneTemplate() throws IOException
     {
+        LOGGER.info("Running test 'testUpdateIndexesOfOneTemplate'...");
         // Create an index with some data
         final IndexRequest request = new IndexRequest("acme-com_item-000001");
         request.id("1");
@@ -96,13 +97,14 @@ public class ElasticMappingUpdaterIT
     @Test
     public void testUpdateIndexesOfUpdatedTemplate() throws IOException
     {
+        LOGGER.info("Running test 'testUpdateIndexesOfUpdatedTemplate'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template1.json";
         final String updatedTemplateSourceFile = "/template2.json";
         final String indexName = "foo-com_sample-000001";
 
         final String origTemplateSource = readFile(origTemplateSourceFile);
-        LOGGER.info("Creating template {}", templateName);
+        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Creating initial template {}", templateName);
 
         // Create a template
         final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
@@ -112,9 +114,9 @@ public class ElasticMappingUpdaterIT
         {
             fail();
         }
-        LOGGER.info("Creating index matching template {}", templateName);
+        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Creating index matching template {}", templateName);
         // Create an index with some data
-        IndexRequest request = new IndexRequest("foo-com_sample-000001");
+        IndexRequest request = new IndexRequest(indexName);
         request.id("1");
         request.routing("1");
         String jsonString = "{"
@@ -136,7 +138,7 @@ public class ElasticMappingUpdaterIT
 
         verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
 
-        LOGGER.info("Updating template {}", templateName);
+        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating template {}", templateName);
         final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
         // Create a template
         final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
@@ -147,11 +149,155 @@ public class ElasticMappingUpdaterIT
             fail();
         }
 
-        LOGGER.info("Updating indexes matching template {}", templateName);
+        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating indexes matching template {}", templateName);
         updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName);
 
         // Index more data
-        request = new IndexRequest("foo-com_sample-000001");
+        request = new IndexRequest(indexName);
+        request.id("2");
+        request.routing("1");
+        jsonString = "{"
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+        try {
+            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
+            assertTrue(response.status() == RestStatus.CREATED);
+        } catch (final ElasticsearchException e) {
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 2);
+    }
+
+    @Test
+    public void testUpdateUnsupportedChanges() throws IOException
+    {
+        LOGGER.info("Running test 'testUpdateUnsupportedChanges'...");
+        final String templateName = "acme-sample-template";
+        final String origTemplateSourceFile = "/template3.json";
+        final String unsupportedTemplateSourceFile = "/template4.json";
+        final String indexName = "test_acmesample-000001";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testUpdateUnsupportedChanges - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if(!putTemplateResponse.isAcknowledged())
+        {
+            fail();
+        }
+        LOGGER.info("testUpdateUnsupportedChanges - Creating index matching template {}", templateName);
+        // Create an index with some data
+        IndexRequest request = new IndexRequest(indexName);
+        request.id("1");
+        request.routing("1");
+        String jsonString = "{"
+                + "'TITLE':'doc1',"
+                + "'DATE_PROCESSED\":'2020-02-11',"
+                + "'CONTENT_PRIMARY':'just a test',"
+                + "'IS_HEAD_OF_FAMILY':true,"
+                + "'PERSON':{ 'NAME':'person1' }"
+                + "}";
+            jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        try {
+            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
+            assertTrue(response.status() == RestStatus.CREATED);
+        } catch (final ElasticsearchException e) {
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
+
+        LOGGER.info("testUpdateUnsupportedChanges - Updating template {}", templateName);
+        final String updatedTemplateSource = readFile(unsupportedTemplateSourceFile);
+        // Create a template
+        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
+        utrequest.source(updatedTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
+        if(!updateTemplateResponse.isAcknowledged())
+        {
+            fail();
+        }
+
+        LOGGER.info("testUpdateUnsupportedChanges - Updating indexes matching template {}", templateName);
+        // No changes to Index mapping
+        updateIndex("testUpdateUnsupportedChanges", templateName);
+    }
+
+    @Test
+    public void testUpdateDynamicTemplateOverwrite() throws IOException
+    {
+        LOGGER.info("Running test 'testUpdateDynamicTemplateOverwrite'...");
+        final String templateName = "sample-template";
+        final String origTemplateSourceFile = "/template5.json";
+        final String updatedTemplateSourceFile = "/template6.json";
+        final String indexName = "test_dynsample-000001";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testUpdateDynamicTemplateOverwrite - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if(!putTemplateResponse.isAcknowledged())
+        {
+            fail();
+        }
+        LOGGER.info("testUpdateDynamicTemplateOverwrite - Creating index matching template {}", templateName);
+        // Create an index with some data
+        IndexRequest request = new IndexRequest(indexName);
+        request.id("1");
+        request.routing("1");
+        String jsonString = "{"
+                + "'TITLE':'doc1',"
+                + "'DATE_PROCESSED\":'2020-02-11',"
+                + "'CONTENT_PRIMARY':'just a test',"
+                + "'IS_HEAD_OF_FAMILY':true,"
+                + "'PERSON':{ 'NAME':'person1' }"
+                + "}";
+            jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        try {
+            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
+            assertTrue(response.status() == RestStatus.CREATED);
+        } catch (final ElasticsearchException e) {
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
+
+        LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating template {}", templateName);
+        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
+        // Create a template
+        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
+        utrequest.source(updatedTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
+        if(!updateTemplateResponse.isAcknowledged())
+        {
+            fail();
+        }
+
+        LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating indexes matching template {}", templateName);
+        updateIndex("testUpdateDynamicTemplateOverwrite", templateName);
+
+        // Index more data
+        request = new IndexRequest(indexName);
         request.id("2");
         request.routing("1");
         jsonString = "{"
@@ -212,7 +358,7 @@ public class ElasticMappingUpdaterIT
 
     private void verifyIndexData(final String indexName, final QueryBuilder query, final long expectedHitCount) throws IOException
     {
-        final SearchRequest searchRequest = new SearchRequest();
+        final SearchRequest searchRequest = new SearchRequest(indexName);
         final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.trackTotalHits(true);
         searchSourceBuilder.query(query);

@@ -25,7 +25,6 @@ import java.util.stream.Stream;
 public final class FlatMapUtil {
 
     private FlatMapUtil() {
-        throw new AssertionError("No instances for you!");
     }
 
     public static Map<String, Object> flatten(Map<String, Object> map) {

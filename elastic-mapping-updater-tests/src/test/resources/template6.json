@@ -80,7 +80,17 @@
       "_routing" : {
         "required" : true
       },
-      "dynamic": "strict",
+      "dynamic_templates" : [
+        {
+          "LONG_TEMPLATE" : {
+            "match" : "LONG_",
+            "mapping" : {
+              "type" : "long",
+              "ignore_malformed" : true
+            }
+          }
+        }
+      ],
       "properties" : {
         "FAILURES" : {
           "properties" : {
@@ -170,8 +180,7 @@
           "analyzer" : "path_analyzer"
         },
         "IS_HEAD_OF_FAMILY" : {
-          "type" : "long",
-          "ignore_malformed" : true
+          "type" : "boolean"
         },
         "DATE_PROCESSED" : {
           "type" : "date",
@@ -184,6 +193,6 @@
       }
     },
     "index_patterns": [
-        "*_acmesample-*"
+        "*_dynsample-*"
     ]
   }

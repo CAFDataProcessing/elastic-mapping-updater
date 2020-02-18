@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.IndexTemplateMetaData;
@@ -34,8 +33,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.collect.Sets.SetView;
 import com.microfocus.caf.elastic.tools.exceptions.IndexNotFoundException;
 import com.microfocus.caf.elastic.tools.exceptions.TemplateNotFoundException;
 import com.microfocus.caf.elastic.tools.exceptions.UnexpectedResponseException;
@@ -102,91 +99,56 @@ public class ElasticMappingUpdater {
 
             LOGGER.info("------Comparing IndexMapping for '{}'", indexName);
 
-            // TODO: fail if 'type' has changed for existing fields
-
-            Map<String, Object> mappingsChanges;
             try {
-                mappingsChanges = getMappingChanges((Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
+                final Map<String, Object> mappingsChanges = getMappingChanges((Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
                         (Map<String, Object>) indexTypeMappings.get(MAPPING_PROPS_KEY));
+                LOGGER.info("------Mapping changes for index '{}': {}", indexName, mappingsChanges);
+                final Map<String, Object> mappingsRequest = new HashMap<>();
+                mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
+
+                // Add all dynamic_templates in template to index mapping
+                Object dynamicTemplatesInTemplate = templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY);
+                if(dynamicTemplatesInTemplate == null)
+                {
+                    dynamicTemplatesInTemplate= new ArrayList<>();
+                }
+
+                mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesInTemplate);
+
+                // Update the index mapping
+                elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
+
+                // Get the updated index mapping
+                getIndexResponse = elasticRequestHandler.getIndex(indexName);
+                indexMappings = getIndexResponse.getMappings().get(indexName);
+                indexTypeMappings = indexMappings.getSourceAsMap();
+                LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
             } catch (final UnsupportedMappingChangesException e) {
-                LOGGER.error("Unsupported mapping changes for index : {}", indexName, e);
+                LOGGER.warn("Unsupported mapping changes for index : {}", indexName, e);
+                // Continue with next index to be updated
                 continue;
             }
-            LOGGER.info("------Mapping changes for index '{}': {}", indexName, mappingsChanges);
-            final Map<String, Object> mappingsRequest = new HashMap<>();
-            mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
-
-            // Add all dynamic_templates in template to index mapping
-            Object dynamicTemplatesInTemplate = templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY);
-            if(dynamicTemplatesInTemplate == null)
-            {
-                dynamicTemplatesInTemplate= new ArrayList<>();
-            }
-
-            mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesInTemplate);
-
-            // Update the index mapping
-            elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
-
-            // Get the updated index mapping
-            getIndexResponse = elasticRequestHandler.getIndex(indexName);
-            indexMappings = getIndexResponse.getMappings().get(indexName);
-            indexTypeMappings = indexMappings.getSourceAsMap();
-            LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
         }
     }
 
     private boolean isMappingChangeSafe(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
             throws JsonProcessingException {
-        boolean isMappingChangeSafe = true;
         final Map<String, Object> ftemplateMapping = FlatMapUtil.flatten(templateMapping);
         final Map<String, Object> findexMapping = FlatMapUtil.flatten(indexMapping);
+        LOGGER.info("Flattened template mapping : {}", ftemplateMapping);
+        LOGGER.info("Flattened index mapping : {}", findexMapping);
         final MapDifference<String, Object> diff = Maps.difference(ftemplateMapping, findexMapping);
-
-        diff.entriesDiffering().forEach((key, value) -> LOGGER.info("Entries differing : {}", key, value));
-        return isMappingChangeSafe;
-    }
-
-    private boolean isMappingChangeSafe(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping,
-            final String propKey) throws JsonProcessingException {
-        final Set<String> templateKeys = templateMapping.keySet();
-        final Set<String> indexKeys = indexMapping.keySet();
-        final SetView<String> templateOnly = Sets.difference(templateKeys, indexKeys);
-        final SetView<String> indexOnly = Sets.difference(indexKeys, templateKeys);
-        LOGGER.info("Entries in template only for key {}: {}", propKey, objectMapper.writeValueAsString(templateOnly));
-        if (propKey != null && templateOnly.size() > 1) {
+        Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
+        if(entriesDiffering.isEmpty())
+        {
+            return true;
+        }
+        else
+        {
+            // ElasticSearch would throw IllegalArgumentException if any such change is included in the index mapping updates
+            entriesDiffering.forEach((key, value) -> LOGGER.info("Entries differing : {}:{}", key, value));
             return false;
         }
-        LOGGER.info("Entries in index only: key {}: {}", propKey, objectMapper.writeValueAsString(indexOnly));
-        final SetView<String> union = Sets.union(templateKeys, indexKeys);
-        final List<String> allKeys = union.stream().collect(Collectors.toList());
-        if (allKeys.size() > 0) {
-            for (final String key : allKeys) {
-                Map<String, Object> templateProps = null;
-                Map<String, Object> indexProps = null;
-                boolean isParent = false;
-                final Object templateValObj = templateMapping.get(key);
-                if (templateValObj != null && templateValObj instanceof Map) {
-                    templateProps = (Map<String, Object>) templateValObj;
-                }
-                final Object indexValObj = indexMapping.get(key);
-                if (indexValObj != null && indexValObj instanceof Map) {
-                    indexProps = (Map<String, Object>) indexValObj;
-                }
-                if (templateProps != null && indexProps != null) {
-                    LOGGER.info("Differing entries for key : '{}'", key);
-                    if (templateProps.containsKey("properties")) {
-                        LOGGER.info("Object/Nested type key {}", key);
-                        isParent = true;
-                    }
-                    if(!isMappingChangeSafe(templateProps, indexProps, key))
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-        return false;
     }
 
     private Map<String, Object> getMappingChanges(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
