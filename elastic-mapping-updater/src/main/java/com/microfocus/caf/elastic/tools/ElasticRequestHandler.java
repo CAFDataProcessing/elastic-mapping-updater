@@ -26,7 +26,6 @@ import java.util.Map;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
-import org.elasticsearch.action.bulk.BulkItemResponse.Failure;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
@@ -47,16 +46,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microfocus.caf.elastic.tools.exceptions.IndexNotFoundException;
 import com.microfocus.caf.elastic.tools.exceptions.TemplateNotFoundException;
 import com.microfocus.caf.elastic.tools.exceptions.UnexpectedResponseException;
-import com.microfocus.caf.elastic.tools.model.ReindexRequest;
 
 public class ElasticRequestHandler {
 
     private static Logger LOGGER = LoggerFactory.getLogger(ElasticRequestHandler.class);
     private final RestClient elasticClient;
     private final ObjectMapper objectMapper;
-    private static final String TEMP_INDEX_NAME_PREFIX = "v141_";
-    private String originalIndexName = null;
-    private String tempIndexName = null;
 
     public ElasticRequestHandler(final ElasticMappingUpdaterConfiguration schemaUpdaterConfig, final ObjectMapper mapper) {
         this.objectMapper = mapper;
@@ -67,10 +62,8 @@ public class ElasticRequestHandler {
     List<String> getTemplateNames() throws UnexpectedResponseException, IOException {
         LOGGER.info("Get template names");
 
-        final Request request = new Request("GET", "/_cat/templates?h=name&s=name&format=json"); // Sort
-                                                                                                 // by
-                                                                                                 // index
-                                                                                                 // name
+        final Request request = new Request("GET", "/_cat/templates?h=name&s=name&format=json");
+
         final JsonNode responseNode = performRequest(request);
 
         if (!responseNode.isArray()) {
@@ -112,19 +105,6 @@ public class ElasticRequestHandler {
             // TODO get more info from response
             throw new TemplateNotFoundException(templateName + " not found");
         }
-    }
-
-    void deleteTemplates(final List<String> dynamicTemplatesInIndex) throws IOException {
-        LOGGER.info("Deleting templates {}", dynamicTemplatesInIndex);
-        String filter = "";
-        if (dynamicTemplatesInIndex != null && dynamicTemplatesInIndex.size() > 0) {
-            filter = String.join(",", dynamicTemplatesInIndex);
-        }
-        final Request request = new Request("DELETE", "/_template/" + filter);
-        final Response response = elasticClient.performRequest(request);
-
-        final int statusCode = response.getStatusLine().getStatusCode();
-        LOGGER.info("Templates deletion status: {}", statusCode);
     }
 
     List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException {
@@ -172,28 +152,9 @@ public class ElasticRequestHandler {
         }
     }
 
-    boolean indexExists(final String indexName) throws IOException {
-        LOGGER.info("Checking if index exists {}", indexName);
-        final Request request = new Request("HEAD", "/" + indexName);
-        final Response response = elasticClient.performRequest(request);
-
-        final int statusCode = response.getStatusLine().getStatusCode();
-        return statusCode != 404;
-    }
-
-    boolean createIndex(final String indexName) throws IOException {
-        LOGGER.info("Creating index {}", indexName);
-        final Request request = new Request("PUT", "/" + indexName);
-        final Response response = elasticClient.performRequest(request);
-
-        final int statusCode = response.getStatusLine().getStatusCode();
-        return statusCode == 200;
-    }
-
     boolean updateIndexMapping(final String indexName, final Map<String, Object> mappings)
             throws IOException, UnexpectedResponseException {
-        // Only for set of properties that are newly added.
-        // TODO check adding new property to existing object/nested property
+        // Only update properties that are newly added
         LOGGER.info("Update mapping of index {} with changes {}", indexName, mappings);
         final String mappingSource = objectMapper.writeValueAsString(mappings);
         final Request request = new Request("PUT", "/" + indexName + "/_mapping");
@@ -224,120 +185,6 @@ public class ElasticRequestHandler {
             throw new UnexpectedResponseException("JSON response deserialized to null");
         }
         return response.getStatusLine().getStatusCode() == 200;
-    }
-
-    boolean deleteIndex(final String indexName) throws IOException {
-        LOGGER.info("Deleting index {}", indexName);
-        final Request request = new Request("DELETE", "/" + indexName);
-        final Response response = elasticClient.performRequest(request);
-
-        final int statusCode = response.getStatusLine().getStatusCode();
-        return statusCode == 200;
-    }
-
-    JsonNode reIndex(final String sourceIndexName, final String destinationIndexName) throws IOException, UnexpectedResponseException {
-        LOGGER.info("Reindexing from {} to {}" + sourceIndexName, destinationIndexName);
-
-        final ReindexRequest rendexRequest = new ReindexRequest(sourceIndexName, destinationIndexName);
-        final Request request = new Request("POST", "/_reindex");
-        request.setJsonEntity(objectMapper.writeValueAsString(rendexRequest));
-
-        final JsonNode responseNode = performRequest(request);
-
-        // Return the response
-        return responseNode;
-    }
-
-    private boolean reindexOrigToTemp(final String templateName) throws IOException, UnexpectedResponseException {
-
-        LOGGER.info("Reindexing from " + this.originalIndexName + " to " + this.tempIndexName);
-
-        // Create a new Index
-        String newIndexName = TEMP_INDEX_NAME_PREFIX + templateName;
-        createIndex(newIndexName);
-
-        // Re-index the data.
-        Long start = System.currentTimeMillis();
-        LOGGER.info("Reindexing...");
-        JsonNode response = reIndex(this.originalIndexName, this.tempIndexName);
-        final Long duration = System.currentTimeMillis() - start;
-        final JsonNode failuresNode = response.get("failures");
-        if (failuresNode == null) {
-            LOGGER.error("Reindex Request Response: 'failures' node not found");
-        } else if (!failuresNode.isArray()) {
-            LOGGER.error("Reindex Request Response: 'failures' node present but is unexpectedly not an array");
-        } else {
-            final List<Failure> failures = new ArrayList<>();
-            final Iterator<JsonNode> it = failuresNode.iterator();
-
-            while (it.hasNext()) {
-                JsonNode n = it.next();
-                failures.add(new Failure(n.get("index").asText(), n.get("type").asText(), n.get("id").asText(), null));
-            }
-
-            if (!failures.isEmpty()) {
-                LOGGER.error("Failed to reindex " + failures.size() + " items for template " + templateName);
-                return false;
-            }
-        }
-
-        LOGGER.info("Reindexing completed in {}s", duration / 1000);
-
-        // Delete original index
-        if (deleteIndex(this.originalIndexName)) {
-            LOGGER.info("Successfully deleted index " + this.originalIndexName);
-        }
-
-        return true;
-    }
-
-    private boolean reindexTempToOrig(final String templateName) throws IOException, UnexpectedResponseException {
-        LOGGER.info("Reindexing from new to original name");
-
-        // TODO: delete any aliases
-        /*
-         * try { IndicesAliasesResponse resp =
-         * client.getClient().admin().indices().prepareAliases()
-         * .removeAlias(this.tempIndexName, this.originalIndexName).get(); }
-         * catch (AliasesNotFoundException anf) {
-         * logger.trace("No alias found"); }
-         */
-        // Create a new Index
-        createIndex(this.originalIndexName);
-
-        // Re-index the data.
-        final Long start = System.currentTimeMillis();
-        LOGGER.info("Reindexing...");
-        final JsonNode response = reIndex(this.tempIndexName, this.originalIndexName);
-        final Long duration = System.currentTimeMillis() - start;
-        final JsonNode failuresNode = response.get("failures");
-        if (failuresNode == null) {
-            LOGGER.error("Reindex Request Response: 'failures' node not found");
-        } else if (!failuresNode.isArray()) {
-            LOGGER.error("Reindex Request Response: 'failures' node present but is unexpectedly not an array");
-        } else {
-            final List<Failure> failures = new ArrayList<>();
-            final Iterator<JsonNode> it = failuresNode.iterator();
-
-            while (it.hasNext()) {
-                JsonNode n = it.next();
-                failures.add(new Failure(n.get("index").asText(), n.get("type").asText(), n.get("id").asText(), null));
-            }
-
-            if (!failures.isEmpty()) {
-                LOGGER.error("Failed to reindex " + failures.size() + " items for template " + templateName);
-                return false;
-            }
-        }
-
-        LOGGER.info("Reindexing completed in {}s", duration / 1000);
-
-        // Delete original index
-        if (deleteIndex(this.tempIndexName)) {
-            LOGGER.info("Successfully deleted index " + this.tempIndexName);
-        }
-
-        return true;
     }
 
     private JsonNode performRequest(final Request request) throws UnexpectedResponseException, IOException{
