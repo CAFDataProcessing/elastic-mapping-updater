@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright 2015-2020 Micro Focus or one of its affiliates.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.microfocus.caf.elastic</groupId>
+        <artifactId>elastic-mapping-updater-aggregator</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>elastic-mapping-updater-tests</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.microfocus.caf.elastic</groupId>
+            <artifactId>elastic-mapping-updater</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpcore</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch-x-content</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-high-level-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-to-slf4j</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>docker-maven-plugin</artifactId>
+                    <version>0.26.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <!-- Plugin for compiling the test source files -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Plugin for running integration tests in the integration-test 
+                phase -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <runOrder>alphabetical</runOrder>
+                    <systemPropertyVariables>
+                        <docker.host.address>${docker.host.address}</docker.host.address>
+                    </systemPropertyVariables>
+                    <environmentVariables>
+                        <ANALYTICS_URL>http://${docker.host.address}:${aspen-analytics.port}</ANALYTICS_URL>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>${docker.host.address}</CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${es.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>60000</CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>
+                        <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <executions>
+                    <!-- Start the containers in pre-integration-test phase. -->
+                    <execution>
+                        <id>start-docker-containers</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <!-- Stop the containers in post-integration-test phase. -->
+                    <execution>
+                        <id>stop-docker-containers</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <imagePullPolicy>IfNotPresent</imagePullPolicy>
+                    <useColor>false</useColor>
+                    <verbose>true</verbose>
+                    <removeVolumes>true</removeVolumes>
+                    <images>
+                        <!-- Elasticsearch image -->
+                        <image>
+                            <name>cafinternal/elasticsearch-custom:5</name>
+                            <alias>elasticsearch</alias>
+                            <run>
+                                <ports>
+                                    <port>${es.http.port}:9200</port>
+                                    <port>${es.client.port}:9300</port>
+                                </ports>
+                                <log>
+                                    <enabled>true</enabled>
+                                </log>
+                                <wait>
+                                    <http>
+                                        <url>http://${docker.host.address}:${es.http.port}</url>
+                                    </http>
+                                    <time>120000</time>
+                                    <shutdown>500</shutdown>
+                                </wait>
+                            </run>
+                        </image>
+
+                        <!-- Postgres image -->
+                        <image>
+                            <name>postgres:9.6</name>
+                            <alias>postgres</alias>
+                            <run>
+                                <ports>
+                                    <port>${postgres.port}:5432</port>
+                                </ports>
+                                <env>
+                                    <POSTGRES_USER>postgres</POSTGRES_USER>
+                                    <POSTGRES_PASSWORD>mysecretpassword</POSTGRES_PASSWORD>
+                                    <POSTGRES_DB>postgres</POSTGRES_DB>
+                                </env>
+                                <wait>
+                                    <log>PostgreSQL init process complete</log>
+                                    <time>120000</time>
+                                    <shutdown>500</shutdown>
+                                </wait>
+                                <log>
+                                    <enabled>true</enabled>
+                                </log>
+                            </run>
+                        </image>
+
+                        <!-- Run Analytics -->
+                        <image>
+                            <alias>analytics</alias>
+                            <!-- name>apolloscm/prereleases:search-and-analytics-3.2.0-SNAPSHOT</name-->
+                            <name>dev/apolloscm/search-and-analytics:3.2.0-SNAPSHOT</name>
+                            <run>
+                                <ports>
+                                    <port>${aspen-analytics.port}:8080</port>
+                                </ports>
+                                <env>
+                                    <CAF_ANALYTICS_MAX_HITS_PER_SHARD>10000</CAF_ANALYTICS_MAX_HITS_PER_SHARD>
+                                    <CAF_ANALYTICS_DROPWIZARD_LOG_LEVEL>DEBUG</CAF_ANALYTICS_DROPWIZARD_LOG_LEVEL>
+                                    <CAF_ANALYTICS_LOG_LEVEL>DEBUG</CAF_ANALYTICS_LOG_LEVEL>
+                                    <CAF_ANALYTICS_SEARCH_LOG_LEVEL>TRACE</CAF_ANALYTICS_SEARCH_LOG_LEVEL>
+                                    <CAF_ANALYTICS_ES_QUERY_LOG_LEVEL>TRACE</CAF_ANALYTICS_ES_QUERY_LOG_LEVEL>
+                                    <CAF_ANALYTICS_ES_AGGREGATION_LOG_LEVEL>TRACE</CAF_ANALYTICS_ES_AGGREGATION_LOG_LEVEL>
+                                    <CAF_ANALYTICS_ES_CRITERIA_LOG_LEVEL>TRACE</CAF_ANALYTICS_ES_CRITERIA_LOG_LEVEL>
+                                    <CAF_ANALYTICS_GRAMMAR_LOG_LEVEL>TRACE</CAF_ANALYTICS_GRAMMAR_LOG_LEVEL>
+                                    <CAF_ANALYTICS_ES_LOG_LEVEL>DEBUG</CAF_ANALYTICS_ES_LOG_LEVEL>
+                                </env>
+                                <wait>
+                                    <http>
+                                        <url>http://${docker.host.address}:${aspen-analytics.port}/platform-services/api/ping</url>
+                                    </http>
+                                    <time>120000</time>
+                                    <shutdown>500</shutdown>
+                                </wait>
+                                <links>
+                                    <link>postgres</link>
+                                    <link>elasticsearch</link>
+                                </links>
+                                <log>
+                                    <enabled>true</enabled>
+                                </log>
+                            </run>
+                        </image>
+                    </images>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- Using this profile causes a set of preset ports to be used, rather 
+        than using ephemeral ports -->
+    <profiles>
+        <profile>
+            <id>use-default-fixed-ports</id>
+            <properties>
+                <es.http.port>9200</es.http.port>
+                <es.client.port>9300</es.client.port>
+                <postgres.port>5432</postgres.port>
+                <aspen-analytics.port>8080</aspen-analytics.port>
+            </properties>
+        </profile>
+    </profiles>
+
+</project>

@@ -1,2 +1,3 @@
 # elastic-mapping-updater
-Tool to update elastic index mappings.
+
+This is a tool to update the mapping of existing indexes in ElasticSearch.
