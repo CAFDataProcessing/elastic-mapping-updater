@@ -53,7 +53,6 @@
 
     <modules>
         <module>elastic-mapping-updater</module>
-        <module>elastic-mapping-updater-tests</module>
     </modules>
 
     <scm>

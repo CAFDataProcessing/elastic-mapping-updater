@@ -94,8 +94,18 @@
 
         <!-- Test dependencies -->
         <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-to-slf4j</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -104,5 +114,116 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Plugin for compiling the test source files -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Plugin for running integration tests in the integration-test phase -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <runOrder>alphabetical</runOrder>
+                    <systemPropertyVariables>
+                        <docker.host.address>${docker.host.address}</docker.host.address>
+                    </systemPropertyVariables>
+                    <environmentVariables>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>${docker.host.address}</CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${es.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>60000</CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>
+                        <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <executions>
+                    <!-- Start the containers in pre-integration-test phase. -->
+                    <execution>
+                        <id>start-docker-containers</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <!-- Stop the containers in post-integration-test phase. -->
+                    <execution>
+                        <id>stop-docker-containers</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <imagePullPolicy>IfNotPresent</imagePullPolicy>
+                    <useColor>false</useColor>
+                    <verbose>true</verbose>
+                    <removeVolumes>true</removeVolumes>
+                    <images>
+                        <!-- Elasticsearch image -->
+                        <image>
+                            <name>cafinternal/prereleases:opensuse-elasticsearch7-2.0.0-SNAPSHOT</name>
+                            <alias>elasticsearch</alias>
+                            <run>
+                                <env>
+                                    <discovery.type>single-node</discovery.type>
+                                </env>
+                                <ports>
+                                    <port>${es.http.port}:9200</port>
+                                    <port>${es.client.port}:9300</port>
+                                </ports>
+                                <log>
+                                    <enabled>true</enabled>
+                                </log>
+                                <wait>
+                                    <http>
+                                        <url>http://${docker.host.address}:${es.http.port}</url>
+                                    </http>
+                                    <time>120000</time>
+                                    <shutdown>500</shutdown>
+                                </wait>
+                            </run>
+                        </image>
+                    </images>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- Using this profile causes a set of preset ports to be used, rather than using ephemeral ports -->
+    <profiles>
+        <profile>
+            <id>use-default-fixed-ports</id>
+            <properties>
+                <es.http.port>9200</es.http.port>
+                <es.client.port>9300</es.client.port>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>
