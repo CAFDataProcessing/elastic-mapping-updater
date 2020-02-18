@@ -67,35 +67,6 @@ public class ElasticMappingUpdaterIT
         indexUpdater = new ElasticMappingUpdater();
     }
 
-    @Ignore
-    public void testUpdateIndexesOfOneTemplate() throws IOException
-    {
-        LOGGER.info("Running test 'testUpdateIndexesOfOneTemplate'...");
-        // Create an index with some data
-        final IndexRequest request = new IndexRequest("acme-com_item-000001");
-        request.id("1");
-        request.routing("1");
-        final String jsonString = "{"
-                + "\"TITLE\":\"kimchy\","
-                + "\"DATE_PROCESSED\":\"2020-02-11\","
-                + "\"CONTENT_PRIMARY\":\"just a test\","
-                + "\"STRING_BATCH_ID\":\"123\""
-            + "}";
-        request.source(jsonString, XContentType.JSON);
-
-        try
-        {
-            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
-            assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e)
-        {
-            fail();
-        }
-
-        final String templateName = "item-template";
-        updateIndex("testUpdateIndexesOfOneTemplate", templateName);
-    }
-
     @Test
     public void testUpdateIndexesOfUpdatedTemplate() throws IOException
     {
