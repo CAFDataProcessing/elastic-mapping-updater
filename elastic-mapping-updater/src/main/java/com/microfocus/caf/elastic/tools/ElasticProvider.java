@@ -31,13 +31,13 @@ final class ElasticProvider
         final String[] hosts = elasticSettings.getElasticSearchHosts().split(",");
         final HttpHost eshosts[] = new HttpHost[hosts.length];
         int i = 0;
-        for (final String host : hosts) {
+        for (final String host : hosts)
+        {
             eshosts[i++] = new HttpHost(host.trim(), elasticSettings.getElasticSearchRestPort());
         }
         final RestClientBuilder restClientBuilder = RestClient.builder(eshosts);
-        restClientBuilder.setRequestConfigCallback(builder -> builder
-            .setConnectTimeout(elasticSettings.getElasticSearchConnectTimeout())
-            .setSocketTimeout(elasticSettings.getElasticSearchSocketTimeout()));
+        restClientBuilder.setRequestConfigCallback(builder -> builder.setConnectTimeout(elasticSettings.getElasticSearchConnectTimeout())
+                .setSocketTimeout(elasticSettings.getElasticSearchSocketTimeout()));
         return restClientBuilder.build();
     }
 }

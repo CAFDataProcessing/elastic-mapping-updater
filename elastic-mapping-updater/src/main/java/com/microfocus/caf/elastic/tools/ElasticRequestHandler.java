@@ -47,34 +47,40 @@ import com.microfocus.caf.elastic.tools.exceptions.IndexNotFoundException;
 import com.microfocus.caf.elastic.tools.exceptions.TemplateNotFoundException;
 import com.microfocus.caf.elastic.tools.exceptions.UnexpectedResponseException;
 
-public class ElasticRequestHandler {
+public class ElasticRequestHandler
+{
 
     private static Logger LOGGER = LoggerFactory.getLogger(ElasticRequestHandler.class);
     private final RestClient elasticClient;
     private final ObjectMapper objectMapper;
 
-    public ElasticRequestHandler(final ElasticMappingUpdaterConfiguration schemaUpdaterConfig, final ObjectMapper mapper) {
+    public ElasticRequestHandler(final ElasticMappingUpdaterConfiguration schemaUpdaterConfig, final ObjectMapper mapper)
+    {
         this.objectMapper = mapper;
         objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
         this.elasticClient = ElasticProvider.getClient(schemaUpdaterConfig.getElasticSettings());
     }
 
-    List<String> getTemplateNames() throws UnexpectedResponseException, IOException {
+    List<String> getTemplateNames() throws UnexpectedResponseException, IOException
+    {
         LOGGER.info("Get template names");
 
         final Request request = new Request("GET", "/_cat/templates?h=name&s=name&format=json");
 
         final JsonNode responseNode = performRequest(request);
 
-        if (!responseNode.isArray()) {
+        if (!responseNode.isArray())
+        {
             LOGGER.error("Get Templates Request Response: response node is present but is unexpectedly not an array");
             throw new UnexpectedResponseException(
                     "Get Templates Request Response: response node is present but is unexpectedly not an array");
-        } else {
+        } else
+        {
             final List<String> indexes = new ArrayList<>();
             final Iterator<JsonNode> it = responseNode.iterator();
 
-            while (it.hasNext()) {
+            while (it.hasNext())
+            {
                 JsonNode n = it.next();
                 indexes.add(n.get("name").asText());
             }
@@ -82,49 +88,60 @@ public class ElasticRequestHandler {
         }
     }
 
-    IndexTemplateMetaData getTemplate(final String templateName) throws IOException, TemplateNotFoundException {
+    IndexTemplateMetaData getTemplate(final String templateName) throws IOException, TemplateNotFoundException
+    {
         LOGGER.info("Get template {}", templateName);
         final Request request = new Request("GET", "/_template/" + templateName);
         final Response response = elasticClient.performRequest(request);
 
         final int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode == 200) {
-            try (final InputStream resultJsonStream = response.getEntity().getContent()) {
+        if (statusCode == 200)
+        {
+            try (final InputStream resultJsonStream = response.getEntity().getContent())
+            {
                 final XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null,
                         resultJsonStream);
                 final GetIndexTemplatesResponse getTemplatesResponse = GetIndexTemplatesResponse.fromXContent(parser);
                 parser.close();
                 final List<IndexTemplateMetaData> templates = getTemplatesResponse.getIndexTemplates();
-                if (templates != null && templates.size() > 0) {
+                if (templates != null && templates.size() > 0)
+                {
                     return templates.get(0);
-                } else {
+                } else
+                {
                     throw new TemplateNotFoundException(templateName + " not found");
                 }
             }
-        } else {
+        } else
+        {
             // TODO get more info from response
             throw new TemplateNotFoundException(templateName + " not found");
         }
     }
 
-    List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException {
+    List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException
+    {
         LOGGER.info("Get index names matching pattern(s) : {}", indexNamePatterns);
         String filter = "";
-        if (indexNamePatterns != null && indexNamePatterns.size() > 0) {
+        if (indexNamePatterns != null && indexNamePatterns.size() > 0)
+        {
             filter = "/" + String.join(",", indexNamePatterns);
         }
         final Request request = new Request("GET", "/_cat/indices" + filter + "?h=index&=index&format=json");
 
         final JsonNode responseNode = performRequest(request);
 
-        if (!responseNode.isArray()) {
+        if (!responseNode.isArray())
+        {
             LOGGER.error("Index Request Response: response node is present but is unexpectedly not an array");
             throw new UnexpectedResponseException("Index Request Response: response node is present but is unexpectedly not an array");
-        } else {
+        } else
+        {
             final List<String> indexes = new ArrayList<>();
             final Iterator<JsonNode> it = responseNode.iterator();
 
-            while (it.hasNext()) {
+            while (it.hasNext())
+            {
                 JsonNode n = it.next();
                 indexes.add(n.get("index").asText());
             }
@@ -132,28 +149,32 @@ public class ElasticRequestHandler {
         }
     }
 
-    GetIndexResponse getIndex(final String indexName) throws IOException, IndexNotFoundException {
+    GetIndexResponse getIndex(final String indexName) throws IOException, IndexNotFoundException
+    {
         LOGGER.info("Get index {}", indexName);
         final Request request = new Request("GET", "/" + indexName);
         final Response response = elasticClient.performRequest(request);
 
         final int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode == 200) {
+        if (statusCode == 200)
+        {
 
-            try (final InputStream resultJsonStream = response.getEntity().getContent()) {
+            try (final InputStream resultJsonStream = response.getEntity().getContent())
+            {
                 final XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null,
                         resultJsonStream);
                 final GetIndexResponse getIndexResponse = GetIndexResponse.fromXContent(parser);
                 parser.close();
                 return getIndexResponse;
             }
-        } else {
+        } else
+        {
             throw new IndexNotFoundException(indexName + " not found");
         }
     }
 
-    boolean updateIndexMapping(final String indexName, final Map<String, Object> mappings)
-            throws IOException, UnexpectedResponseException {
+    boolean updateIndexMapping(final String indexName, final Map<String, Object> mappings) throws IOException, UnexpectedResponseException
+    {
         // Only update properties that are newly added
         LOGGER.info("Update mapping of index {} with changes {}", indexName, mappings);
         final String mappingSource = objectMapper.writeValueAsString(mappings);
@@ -167,12 +188,14 @@ public class ElasticRequestHandler {
 
         // Get the Content-Type header
         final ContentType contentType = ContentType.get(responseEntity);
-        if (contentType == null) {
+        if (contentType == null)
+        {
             throw new UnexpectedResponseException("Failed to get the content type from the response entity");
         }
 
         // Check that the response is JSON
-        if (!ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
+        if (!ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType()))
+        {
             throw new UnexpectedResponseException("JSON response expected but response type was " + contentType.getMimeType());
         }
 
@@ -181,13 +204,15 @@ public class ElasticRequestHandler {
                 ? objectMapper.readTree(responseEntity.getContent()) : objectMapper.readTree(EntityUtils.toString(responseEntity));
 
         // Check that it is not null
-        if (responseNode == null) {
+        if (responseNode == null)
+        {
             throw new UnexpectedResponseException("JSON response deserialized to null");
         }
         return response.getStatusLine().getStatusCode() == 200;
     }
 
-    private JsonNode performRequest(final Request request) throws UnexpectedResponseException, IOException{
+    private JsonNode performRequest(final Request request) throws UnexpectedResponseException, IOException
+    {
         final Response response = elasticClient.performRequest(request);
 
         // Get the response entity
@@ -195,12 +220,14 @@ public class ElasticRequestHandler {
 
         // Get the Content-Type header
         final ContentType contentType = ContentType.get(responseEntity);
-        if (contentType == null) {
+        if (contentType == null)
+        {
             throw new UnexpectedResponseException("Failed to get the content type from the response entity");
         }
 
         // Check that the response is JSON
-        if (!ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
+        if (!ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType()))
+        {
             throw new UnexpectedResponseException("JSON response expected but response type was " + contentType.getMimeType());
         }
 
@@ -209,7 +236,8 @@ public class ElasticRequestHandler {
                 ? objectMapper.readTree(responseEntity.getContent()) : objectMapper.readTree(EntityUtils.toString(responseEntity));
 
         // Check that it is not null
-        if (responseNode == null) {
+        if (responseNode == null)
+        {
             throw new UnexpectedResponseException("JSON response deserialized to null");
         }
         return responseNode;

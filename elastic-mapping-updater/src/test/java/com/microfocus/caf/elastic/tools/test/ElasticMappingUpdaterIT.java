@@ -76,17 +76,19 @@ public class ElasticMappingUpdaterIT
         request.id("1");
         request.routing("1");
         final String jsonString = "{"
-            + "\"TITLE\":\"kimchy\","
-            + "\"DATE_PROCESSED\":\"2020-02-11\","
-            + "\"CONTENT_PRIMARY\":\"just a test\","
-            + "\"STRING_BATCH_ID\":\"123\""
+                + "\"TITLE\":\"kimchy\","
+                + "\"DATE_PROCESSED\":\"2020-02-11\","
+                + "\"CONTENT_PRIMARY\":\"just a test\","
+                + "\"STRING_BATCH_ID\":\"123\""
             + "}";
         request.source(jsonString, XContentType.JSON);
 
-        try {
+        try
+        {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final ElasticsearchException e)
+        {
             fail();
         }
 
@@ -110,7 +112,7 @@ public class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
         trequest.source(origTemplateSource, XContentType.JSON);
         final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
-        if(!putTemplateResponse.isAcknowledged())
+        if (!putTemplateResponse.isAcknowledged())
         {
             fail();
         }
@@ -119,20 +121,17 @@ public class ElasticMappingUpdaterIT
         IndexRequest request = new IndexRequest(indexName);
         request.id("1");
         request.routing("1");
-        String jsonString = "{"
-                + "'TITLE':'doc1',"
-                + "'DATE_PROCESSED\":'2020-02-11',"
-                + "'CONTENT_PRIMARY':'just a test',"
-                + "'IS_HEAD_OF_FAMILY':true,"
-                + "'PERSON':{ 'NAME':'person1' }"
-                + "}";
-            jsonString = jsonString.replaceAll("'", "\"");
+        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
+                + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try {
+        try
+        {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final ElasticsearchException e)
+        {
             fail();
         }
 
@@ -144,7 +143,7 @@ public class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
         utrequest.source(updatedTemplateSource, XContentType.JSON);
         final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
-        if(!updateTemplateResponse.isAcknowledged())
+        if (!updateTemplateResponse.isAcknowledged())
         {
             fail();
         }
@@ -157,21 +156,23 @@ public class ElasticMappingUpdaterIT
         request.id("2");
         request.routing("1");
         jsonString = "{"
-            + "'TITLE':'doc2',"
-            + "'DATE_PROCESSED':'2020-02-11',"
-            + "'CONTENT_PRIMARY':'just a test',"
-            + "'IS_HEAD_OF_FAMILY':true,"
-            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
-            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
-            + "}";
+                    + "'TITLE':'doc2',"
+                    + "'DATE_PROCESSED':'2020-02-11',"
+                    + "'CONTENT_PRIMARY':'just a test',"
+                    + "'IS_HEAD_OF_FAMILY':true,"
+                    + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+                    + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
+                + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-        try {
+        try
+        {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final ElasticsearchException e)
+        {
             fail();
         }
 
@@ -194,7 +195,7 @@ public class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
         trequest.source(origTemplateSource, XContentType.JSON);
         final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
-        if(!putTemplateResponse.isAcknowledged())
+        if (!putTemplateResponse.isAcknowledged())
         {
             fail();
         }
@@ -204,19 +205,21 @@ public class ElasticMappingUpdaterIT
         request.id("1");
         request.routing("1");
         String jsonString = "{"
-                + "'TITLE':'doc1',"
-                + "'DATE_PROCESSED\":'2020-02-11',"
-                + "'CONTENT_PRIMARY':'just a test',"
-                + "'IS_HEAD_OF_FAMILY':true,"
-                + "'PERSON':{ 'NAME':'person1' }"
+                    + "'TITLE':'doc1',"
+                    + "'DATE_PROCESSED\":'2020-02-11',"
+                    + "'CONTENT_PRIMARY':'just a test',"
+                    + "'IS_HEAD_OF_FAMILY':true,"
+                    + "'PERSON':{ 'NAME':'person1' }"
                 + "}";
-            jsonString = jsonString.replaceAll("'", "\"");
+        jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try {
+        try
+        {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final ElasticsearchException e)
+        {
             fail();
         }
 
@@ -228,7 +231,7 @@ public class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
         utrequest.source(updatedTemplateSource, XContentType.JSON);
         final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
-        if(!updateTemplateResponse.isAcknowledged())
+        if (!updateTemplateResponse.isAcknowledged())
         {
             fail();
         }
@@ -254,7 +257,7 @@ public class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
         trequest.source(origTemplateSource, XContentType.JSON);
         final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
-        if(!putTemplateResponse.isAcknowledged())
+        if (!putTemplateResponse.isAcknowledged())
         {
             fail();
         }
@@ -264,19 +267,21 @@ public class ElasticMappingUpdaterIT
         request.id("1");
         request.routing("1");
         String jsonString = "{"
-                + "'TITLE':'doc1',"
-                + "'DATE_PROCESSED\":'2020-02-11',"
-                + "'CONTENT_PRIMARY':'just a test',"
-                + "'IS_HEAD_OF_FAMILY':true,"
-                + "'PERSON':{ 'NAME':'person1' }"
+                    + "'TITLE':'doc1',"
+                    + "'DATE_PROCESSED\":'2020-02-11',"
+                    + "'CONTENT_PRIMARY':'just a test',"
+                    + "'IS_HEAD_OF_FAMILY':true,"
+                    + "'PERSON':{ 'NAME':'person1' }"
                 + "}";
-            jsonString = jsonString.replaceAll("'", "\"");
+        jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try {
+        try
+        {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final ElasticsearchException e)
+        {
             fail();
         }
 
@@ -288,7 +293,7 @@ public class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
         utrequest.source(updatedTemplateSource, XContentType.JSON);
         final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
-        if(!updateTemplateResponse.isAcknowledged())
+        if (!updateTemplateResponse.isAcknowledged())
         {
             fail();
         }
@@ -301,21 +306,23 @@ public class ElasticMappingUpdaterIT
         request.id("2");
         request.routing("1");
         jsonString = "{"
-            + "'TITLE':'doc2',"
-            + "'DATE_PROCESSED':'2020-02-11',"
-            + "'CONTENT_PRIMARY':'just a test',"
-            + "'IS_HEAD_OF_FAMILY':true,"
-            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
-            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
-            + "}";
+                    + "'TITLE':'doc2',"
+                    + "'DATE_PROCESSED':'2020-02-11',"
+                    + "'CONTENT_PRIMARY':'just a test',"
+                    + "'IS_HEAD_OF_FAMILY':true,"
+                    + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+                    + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
+                + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-        try {
+        try
+        {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final ElasticsearchException e)
+        {
             fail();
         }
 
@@ -325,34 +332,45 @@ public class ElasticMappingUpdaterIT
     private void updateIndex(final String testName, final String templateName)
     {
         LOGGER.info("{}: {}", testName, templateName);
-        try {
+        try
+        {
             indexUpdater.updateIndexesForTemplate(templateName);
-        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException | IndexNotFoundException e) {
+        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException | IndexNotFoundException e)
+        {
             LOGGER.error(testName, e);
             fail(testName + ":" + e);
         }
     }
 
-    public static String readFile(final String path) throws IOException {
+    public static String readFile(final String path) throws IOException
+    {
         InputStream is = null;
         BufferedReader br = null;
 
-        try {
+        try
+        {
             is = ElasticMappingUpdaterIT.class.getResourceAsStream(path);
 
             final StringBuilder sb = new StringBuilder();
             String line;
             br = new BufferedReader(new InputStreamReader(is));
-            while ((line = br.readLine()) != null) {
+            while ((line = br.readLine()) != null)
+            {
                 sb.append(line);
                 sb.append("\n");
             }
             final String content = sb.toString();
             return content;
-        }
-        finally {
-            if (is != null) is.close();
-            if (br != null) br.close();
+        } finally
+        {
+            if (is != null)
+            {
+                is.close();
+            }
+            if (br != null)
+            {
+                br.close();
+            }
         }
     }
 
@@ -370,7 +388,8 @@ public class ElasticMappingUpdaterIT
         assertTrue("Got test document", totalDocs == expectedHitCount);
 
         final SearchHit[] searchHits = searchResponse.getHits().getHits();
-        for (final SearchHit hit : searchHits) {
+        for (final SearchHit hit : searchHits)
+        {
             final Map<String, Object> sourceAsMap = hit.getSourceAsMap();
             LOGGER.info("hit : {}", sourceAsMap);
         }

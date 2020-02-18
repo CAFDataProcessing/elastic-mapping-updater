@@ -38,7 +38,8 @@ public class ElasticSettings
     private int elasticSearchSocketTimeout;
 
     public ElasticSettings(final String elasticSearchHosts, final int elasticSearchRestPort, final int elasticSearchConnectTimeout,
-            final int elasticSearchSocketTimeout) {
+            final int elasticSearchSocketTimeout)
+    {
         this.elasticSearchHosts = elasticSearchHosts;
         this.elasticSearchRestPort = elasticSearchRestPort;
         this.elasticSearchConnectTimeout = elasticSearchConnectTimeout;
@@ -58,7 +59,8 @@ public class ElasticSettings
     /**
      * Setter for property 'elasticSearchHosts'.
      *
-     * @param elasticSearchHosts Value to set for property 'elasticSearchHosts'.
+     * @param elasticSearchHosts
+     *            Value to set for property 'elasticSearchHosts'.
      */
     public void setElasticSearchHosts(String elasticSearchHosts)
     {
@@ -78,7 +80,8 @@ public class ElasticSettings
     /**
      * Setter for property 'elasticSearchRestPort'.
      *
-     * @param elasticSearchRestPort Value to set for property 'elasticSearchRestPort'.
+     * @param elasticSearchRestPort
+     *            Value to set for property 'elasticSearchRestPort'.
      */
     public void setElasticSearchRestPort(final int elasticSearchRestPort)
     {

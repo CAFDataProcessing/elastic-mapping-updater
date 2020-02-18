@@ -39,7 +39,8 @@ import com.microfocus.caf.elastic.tools.exceptions.UnexpectedResponseException;
 import com.microfocus.caf.elastic.tools.exceptions.UnsupportedMappingChangesException;
 import com.microfocus.caf.elastic.tools.utils.FlatMapUtil;
 
-public class ElasticMappingUpdater {
+public class ElasticMappingUpdater
+{
 
     private static Logger LOGGER = LoggerFactory.getLogger(ElasticMappingUpdater.class);
 
@@ -49,7 +50,8 @@ public class ElasticMappingUpdater {
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
 
-    public ElasticMappingUpdater() {
+    public ElasticMappingUpdater()
+    {
         this.objectMapper = new ObjectMapper();
         final ElasticSettings elasticSettings = new ElasticSettings(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES"),
                 Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT")),
@@ -61,29 +63,34 @@ public class ElasticMappingUpdater {
         elasticRequestHandler = new ElasticRequestHandler(schemaUpdaterConfiguration, this.objectMapper);
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception
+    {
         final ElasticMappingUpdater updater = new ElasticMappingUpdater();
         updater.updateIndexes();
         System.exit(0);
     }
 
-    public void updateIndexes() throws IOException, UnexpectedResponseException, TemplateNotFoundException, IndexNotFoundException {
+    public void updateIndexes() throws IOException, UnexpectedResponseException, TemplateNotFoundException, IndexNotFoundException
+    {
         final List<String> templateNames = elasticRequestHandler.getTemplateNames();
-        for (final String templateName : templateNames) {
+        for (final String templateName : templateNames)
+        {
             updateIndexesForTemplate(templateName);
         }
     }
 
     @SuppressWarnings("unchecked")
     public void updateIndexesForTemplate(final String templateName)
-            throws IOException, TemplateNotFoundException, UnexpectedResponseException, IndexNotFoundException {
+            throws IOException, TemplateNotFoundException, UnexpectedResponseException, IndexNotFoundException
+    {
         LOGGER.info("Updating index(es) matching template '{}'", templateName);
 
         final IndexTemplateMetaData template = elasticRequestHandler.getTemplate(templateName);
         final List<String> patterns = template.patterns();
 
         final MappingMetaData mapping = template.mappings();
-        if (mapping == null) {
+        if (mapping == null)
+        {
             LOGGER.info("No mappings in template '{}'", templateName);
             return;
         }
@@ -92,15 +99,18 @@ public class ElasticMappingUpdater {
         // Find all indices that match template patterns
         final List<String> indexes = elasticRequestHandler.getIndexNames(patterns);
         LOGGER.info("Got {} index(es) that match template '{}'", indexes.size(), templateName);
-        for (final String indexName : indexes) {
+        for (final String indexName : indexes)
+        {
             GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
             MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
             Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
 
             LOGGER.info("------Comparing IndexMapping for '{}'", indexName);
 
-            try {
-                final Map<String, Object> mappingsChanges = getMappingChanges((Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
+            try
+            {
+                final Map<String, Object> mappingsChanges = getMappingChanges(
+                        (Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
                         (Map<String, Object>) indexTypeMappings.get(MAPPING_PROPS_KEY));
                 LOGGER.info("------Mapping changes for index '{}': {}", indexName, mappingsChanges);
                 final Map<String, Object> mappingsRequest = new HashMap<>();
@@ -108,9 +118,9 @@ public class ElasticMappingUpdater {
 
                 // Add all dynamic_templates in template to index mapping
                 Object dynamicTemplatesInTemplate = templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY);
-                if(dynamicTemplatesInTemplate == null)
+                if (dynamicTemplatesInTemplate == null)
                 {
-                    dynamicTemplatesInTemplate= new ArrayList<>();
+                    dynamicTemplatesInTemplate = new ArrayList<>();
                 }
 
                 mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesInTemplate);
@@ -123,7 +133,8 @@ public class ElasticMappingUpdater {
                 indexMappings = getIndexResponse.getMappings().get(indexName);
                 indexTypeMappings = indexMappings.getSourceAsMap();
                 LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
-            } catch (final UnsupportedMappingChangesException e) {
+            } catch (final UnsupportedMappingChangesException e)
+            {
                 LOGGER.warn("Unsupported mapping changes for index : {}", indexName, e);
                 // Continue with next index to be updated
                 continue;
@@ -132,34 +143,36 @@ public class ElasticMappingUpdater {
     }
 
     private boolean isMappingChangeSafe(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
-            throws JsonProcessingException {
+            throws JsonProcessingException
+    {
         final Map<String, Object> ftemplateMapping = FlatMapUtil.flatten(templateMapping);
         final Map<String, Object> findexMapping = FlatMapUtil.flatten(indexMapping);
         LOGGER.info("Flattened template mapping : {}", ftemplateMapping);
         LOGGER.info("Flattened index mapping : {}", findexMapping);
         final MapDifference<String, Object> diff = Maps.difference(ftemplateMapping, findexMapping);
         Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
-        if(entriesDiffering.isEmpty())
+        if (entriesDiffering.isEmpty())
         {
             return true;
-        }
-        else
+        } else
         {
-            // ElasticSearch would throw IllegalArgumentException if any such change is included in the index mapping updates
+            // ElasticSearch would throw IllegalArgumentException if any such
+            // change is included in the index mapping updates
             entriesDiffering.forEach((key, value) -> LOGGER.info("Entries differing : {}:{}", key, value));
             return false;
         }
     }
 
     private Map<String, Object> getMappingChanges(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
-            throws JsonProcessingException, UnsupportedMappingChangesException {
+            throws JsonProcessingException, UnsupportedMappingChangesException
+    {
         final Map<String, Object> mappingsChanges = new HashMap<>();
         final MapDifference<String, Object> diff = Maps.difference(templateMapping, indexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
 
         LOGGER.info("Differing entries: {}", objectMapper.writeValueAsString(entriesDiffering));
 
-        if(!isMappingChangeSafe(templateMapping, indexMapping))
+        if (!isMappingChangeSafe(templateMapping, indexMapping))
         {
             throw new UnsupportedMappingChangesException("Unsupported mapping changes");
         }
@@ -168,7 +181,8 @@ public class ElasticMappingUpdater {
         LOGGER.info("Entries only in Template: {}", objectMapper.writeValueAsString(entriesOnlyInTemplate));
         mappingsChanges.putAll(entriesOnlyInTemplate);
         final Set<String> fields = entriesDiffering.keySet();
-        for (final String field : fields) {
+        for (final String field : fields)
+        {
             mappingsChanges.put(field, ((ValueDifference<?>) entriesDiffering.get(field)).leftValue());
         }
 
