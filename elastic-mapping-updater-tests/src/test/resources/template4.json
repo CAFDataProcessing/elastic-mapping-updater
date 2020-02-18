@@ -76,114 +76,114 @@
             }
         }
     },
-    "mappings" : {
-      "_routing" : {
-        "required" : true
-      },
-      "dynamic": "strict",
-      "properties" : {
-        "FAILURES" : {
-          "properties" : {
-            "AJP_JOB_RUN_ID" : {
-              "type" : "long",
-              "ignore_malformed" : true
+    "mappings": {
+        "_routing": {
+            "required": true
+        },
+        "dynamic": "strict",
+        "properties": {
+            "FAILURES": {
+                "properties": {
+                    "AJP_JOB_RUN_ID": {
+                        "type": "long",
+                        "ignore_malformed": true
+                    },
+                    "AJP_WORK_UNIT_ID": {
+                        "type": "keyword",
+                        "ignore_above": 20
+                    },
+                    "COMPONENT": {
+                        "type": "keyword",
+                        "ignore_above": 64
+                    },
+                    "DATE": {
+                        "type": "date",
+                        "format": "strict_date_optional_time||epoch_second"
+                    },
+                    "ID": {
+                        "type": "keyword",
+                        "ignore_above": 32
+                    },
+                    "MESSAGE": {
+                        "type": "text",
+                        "copy_to": [
+                            "FAILURES.MESSAGE_AGGREGATE"
+                        ],
+                        "analyzer": "general_analyzer"
+                    },
+                    "MESSAGE_AGGREGATE": {
+                        "type": "keyword",
+                        "ignore_above": 256
+                    },
+                    "STACK": {
+                        "type": "text",
+                        "analyzer": "general_analyzer"
+                    },
+                    "WORKFLOW_ACTION": {
+                        "type": "keyword",
+                        "ignore_above": 32
+                    },
+                    "WORKFLOW_NAME": {
+                        "type": "keyword",
+                        "ignore_above": 100
+                    }
+                }
             },
-            "AJP_WORK_UNIT_ID" : {
-              "type" : "keyword",
-              "ignore_above" : 20
+            "PERSON": {
+                "properties": {
+                    "NAME": {
+                        "type": "keyword",
+                        "ignore_above": 20
+                    },
+                    "AGE": {
+                        "type": "long",
+                        "ignore_malformed": true
+                    }
+                }
             },
-            "COMPONENT" : {
-              "type" : "keyword",
-              "ignore_above" : 64
+            "HOLD_DETAILS": {
+                "type": "nested",
+                "properties": {
+                    "FIRST_HELD_DATE": {
+                        "type": "date",
+                        "format": "strict_date_optional_time||epoch_second"
+                    },
+                    "HOLD_HISTORY": {
+                        "type": "date",
+                        "format": "strict_date_optional_time||epoch_second"
+                    },
+                    "HOLD_ID": {
+                        "type": "text"
+                    }
+                }
             },
-            "DATE" : {
-              "type" : "date",
-              "format" : "strict_date_optional_time||epoch_second"
+            "ID": {
+                "type": "long",
+                "ignore_malformed": true
             },
-            "ID" : {
-              "type" : "keyword",
-              "ignore_above" : 32
+            "TITLE": {
+                "type": "text",
+                "analyzer": "path_analyzer"
             },
-            "MESSAGE" : {
-              "type" : "text",
-              "copy_to" : [
-                "FAILURES.MESSAGE_AGGREGATE"
-              ],
-              "analyzer" : "general_analyzer"
+            "CONTENT_PRIMARY": {
+                "type": "text",
+                "analyzer": "path_analyzer"
             },
-            "MESSAGE_AGGREGATE" : {
-              "type" : "keyword",
-              "ignore_above" : 256
+            "IS_HEAD_OF_FAMILY": {
+                "type": "long",
+                "ignore_malformed": true
             },
-            "STACK" : {
-              "type" : "text",
-              "analyzer" : "general_analyzer"
+            "DATE_PROCESSED": {
+                "type": "date",
+                "format": "strict_date_optional_time||epoch_second"
             },
-            "WORKFLOW_ACTION" : {
-              "type" : "keyword",
-              "ignore_above" : 32
-            },
-            "WORKFLOW_NAME" : {
-              "type" : "keyword",
-              "ignore_above" : 100
+            "DATE_DISPOSED": {
+                "type": "date",
+                "format": "strict_date_optional_time||epoch_second"
             }
-          }
-        },
-        "PERSON" : {
-          "properties" : {
-            "NAME" : {
-              "type" : "keyword",
-              "ignore_above" : 20
-            },
-            "AGE" : {
-                "type" : "long",
-                "ignore_malformed" : true
-            }
-          }
-        },
-        "HOLD_DETAILS" : {
-          "type" : "nested",
-          "properties" : {
-            "FIRST_HELD_DATE" : {
-              "type" : "date",
-              "format" : "strict_date_optional_time||epoch_second"
-            },
-            "HOLD_HISTORY" : {
-              "type" : "date",
-              "format" : "strict_date_optional_time||epoch_second"
-            },
-            "HOLD_ID" : {
-              "type" : "text"
-            }
-          }
-        },
-        "ID" : {
-          "type" : "long",
-          "ignore_malformed" : true
-        },
-        "TITLE" : {
-          "type" : "text",
-          "analyzer" : "path_analyzer"
-        },
-        "CONTENT_PRIMARY" : {
-          "type" : "text",
-          "analyzer" : "path_analyzer"
-        },
-        "IS_HEAD_OF_FAMILY" : {
-          "type" : "long",
-          "ignore_malformed" : true
-        },
-        "DATE_PROCESSED" : {
-          "type" : "date",
-          "format" : "strict_date_optional_time||epoch_second"
-        },
-        "DATE_DISPOSED" : {
-          "type" : "date",
-          "format" : "strict_date_optional_time||epoch_second"
         }
-      }
     },
     "index_patterns": [
         "*_acmesample-*"
     ]
-  }
+}
