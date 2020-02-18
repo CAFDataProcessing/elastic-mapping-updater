@@ -85,8 +85,8 @@
         "FAILURES" : {
           "properties" : {
             "AJP_JOB_RUN_ID" : {
-              "type" : "keyword",
-              "ignore_above" : 20
+              "type" : "long",
+              "ignore_malformed" : true
             },
             "AJP_WORK_UNIT_ID" : {
               "type" : "keyword",
