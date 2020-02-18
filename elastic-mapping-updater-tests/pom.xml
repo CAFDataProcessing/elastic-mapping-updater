@@ -108,8 +108,7 @@
                 </executions>
             </plugin>
 
-            <!-- Plugin for running integration tests in the integration-test 
-                phase -->
+            <!-- Plugin for running integration tests in the integration-test phase -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -127,7 +126,6 @@
                         <docker.host.address>${docker.host.address}</docker.host.address>
                     </systemPropertyVariables>
                     <environmentVariables>
-                        <ANALYTICS_URL>http://${docker.host.address}:${aspen-analytics.port}</ANALYTICS_URL>
                         <CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>${docker.host.address}</CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>
                         <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${es.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
                         <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>
@@ -185,67 +183,6 @@
                                 </wait>
                             </run>
                         </image>
-
-                        <!-- Postgres image -->
-                        <image>
-                            <name>postgres:9.6</name>
-                            <alias>postgres</alias>
-                            <run>
-                                <ports>
-                                    <port>${postgres.port}:5432</port>
-                                </ports>
-                                <env>
-                                    <POSTGRES_USER>postgres</POSTGRES_USER>
-                                    <POSTGRES_PASSWORD>mysecretpassword</POSTGRES_PASSWORD>
-                                    <POSTGRES_DB>postgres</POSTGRES_DB>
-                                </env>
-                                <wait>
-                                    <log>PostgreSQL init process complete</log>
-                                    <time>120000</time>
-                                    <shutdown>500</shutdown>
-                                </wait>
-                                <log>
-                                    <enabled>true</enabled>
-                                </log>
-                            </run>
-                        </image>
-
-                        <!-- Run Analytics -->
-                        <image>
-                            <alias>analytics</alias>
-                            <!-- name>apolloscm/prereleases:search-and-analytics-3.2.0-SNAPSHOT</name-->
-                            <name>dev/apolloscm/search-and-analytics:3.2.0-SNAPSHOT</name>
-                            <run>
-                                <ports>
-                                    <port>${aspen-analytics.port}:8080</port>
-                                </ports>
-                                <env>
-                                    <CAF_ANALYTICS_MAX_HITS_PER_SHARD>10000</CAF_ANALYTICS_MAX_HITS_PER_SHARD>
-                                    <CAF_ANALYTICS_DROPWIZARD_LOG_LEVEL>DEBUG</CAF_ANALYTICS_DROPWIZARD_LOG_LEVEL>
-                                    <CAF_ANALYTICS_LOG_LEVEL>DEBUG</CAF_ANALYTICS_LOG_LEVEL>
-                                    <CAF_ANALYTICS_SEARCH_LOG_LEVEL>TRACE</CAF_ANALYTICS_SEARCH_LOG_LEVEL>
-                                    <CAF_ANALYTICS_ES_QUERY_LOG_LEVEL>TRACE</CAF_ANALYTICS_ES_QUERY_LOG_LEVEL>
-                                    <CAF_ANALYTICS_ES_AGGREGATION_LOG_LEVEL>TRACE</CAF_ANALYTICS_ES_AGGREGATION_LOG_LEVEL>
-                                    <CAF_ANALYTICS_ES_CRITERIA_LOG_LEVEL>TRACE</CAF_ANALYTICS_ES_CRITERIA_LOG_LEVEL>
-                                    <CAF_ANALYTICS_GRAMMAR_LOG_LEVEL>TRACE</CAF_ANALYTICS_GRAMMAR_LOG_LEVEL>
-                                    <CAF_ANALYTICS_ES_LOG_LEVEL>DEBUG</CAF_ANALYTICS_ES_LOG_LEVEL>
-                                </env>
-                                <wait>
-                                    <http>
-                                        <url>http://${docker.host.address}:${aspen-analytics.port}/platform-services/api/ping</url>
-                                    </http>
-                                    <time>120000</time>
-                                    <shutdown>500</shutdown>
-                                </wait>
-                                <links>
-                                    <link>postgres</link>
-                                    <link>elasticsearch</link>
-                                </links>
-                                <log>
-                                    <enabled>true</enabled>
-                                </log>
-                            </run>
-                        </image>
                     </images>
                 </configuration>
             </plugin>
@@ -260,8 +197,6 @@
             <properties>
                 <es.http.port>9200</es.http.port>
                 <es.client.port>9300</es.client.port>
-                <postgres.port>5432</postgres.port>
-                <aspen-analytics.port>8080</aspen-analytics.port>
             </properties>
         </profile>
     </profiles>
