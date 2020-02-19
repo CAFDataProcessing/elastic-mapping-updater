@@ -16,7 +16,7 @@
 package com.github.cafdataprocessing.elastic.tools;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,14 +110,14 @@ public class ElasticMappingUpdater
             MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
             Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
 
-            LOGGER.info("------Comparing IndexMapping for '{}'", indexName);
+            LOGGER.info("Comparing IndexMapping for '{}'", indexName);
 
             try
             {
                 final Map<String, Object> mappingsChanges = getMappingChanges(
                         (Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
                         (Map<String, Object>) indexTypeMappings.get(MAPPING_PROPS_KEY));
-                LOGGER.info("------Mapping changes for index '{}': {}", indexName, mappingsChanges);
+                LOGGER.info("Mapping changes for index '{}': {}", indexName, mappingsChanges);
                 final Map<String, Object> mappingsRequest = new HashMap<>();
                 mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
@@ -125,7 +125,8 @@ public class ElasticMappingUpdater
                 Object dynamicTemplatesInTemplate = templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY);
                 if (dynamicTemplatesInTemplate == null)
                 {
-                    dynamicTemplatesInTemplate = new ArrayList<>();
+                    // This will clear all existing dynamic_templates in index mapping
+                    dynamicTemplatesInTemplate = Collections.emptyList();
                 }
 
                 mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesInTemplate);
@@ -137,7 +138,7 @@ public class ElasticMappingUpdater
                 getIndexResponse = elasticRequestHandler.getIndex(indexName);
                 indexMappings = getIndexResponse.getMappings().get(indexName);
                 indexTypeMappings = indexMappings.getSourceAsMap();
-                LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
+                LOGGER.info("Updated mapping for index '{}': {}", indexName, indexTypeMappings);
             } catch (final UnsupportedMappingChangesException e)
             {
                 LOGGER.warn("Unsupported mapping changes for index : {}", indexName, e);
@@ -152,10 +153,8 @@ public class ElasticMappingUpdater
     {
         final Map<String, Object> ftemplateMapping = FlatMapUtil.flatten(templateMapping);
         final Map<String, Object> findexMapping = FlatMapUtil.flatten(indexMapping);
-        LOGGER.info("Flattened template mapping : {}", ftemplateMapping);
-        LOGGER.info("Flattened index mapping : {}", findexMapping);
         final MapDifference<String, Object> diff = Maps.difference(ftemplateMapping, findexMapping);
-        Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
+        final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
         if (entriesDiffering.isEmpty())
         {
             return true;
@@ -163,7 +162,7 @@ public class ElasticMappingUpdater
         {
             // ElasticSearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
-            entriesDiffering.forEach((key, value) -> LOGGER.info("Entries differing : {}:{}", key, value));
+            entriesDiffering.forEach((key, value) -> LOGGER.warn("Entries differing : {}:{}", key, value));
             return false;
         }
     }
@@ -185,6 +184,7 @@ public class ElasticMappingUpdater
         final Map<String, Object> entriesOnlyInTemplate = diff.entriesOnlyOnLeft();
         LOGGER.info("Entries only in Template: {}", objectMapper.writeValueAsString(entriesOnlyInTemplate));
         mappingsChanges.putAll(entriesOnlyInTemplate);
+
         final Set<String> fields = entriesDiffering.keySet();
         for (final String field : fields)
         {
