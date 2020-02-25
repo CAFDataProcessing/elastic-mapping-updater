@@ -61,39 +61,41 @@ import java.util.stream.Stream;
  *     /groups/0: java
  *     /groups/1: machine-learning
  */
-public final class FlatMapUtil {
-
-    private FlatMapUtil() {
+public final class FlatMapUtil
+{
+    private FlatMapUtil()
+    {
     }
 
     /**
      * A JSON document with nested objects is represented as a map of maps.
-     * Convert a map of maps to a simple map with 'JSON pointer' keys to identify a specific value
-     * within a JSON document.
+     * Convert a map of maps to a simple map with 'JSON pointer' keys to identify a specific value within a JSON document.
+     *
      * @param map Map representing a JSON document to be flattened
      * @return Map with keys representing paths to all values in the JSON document
      */
-    public static Map<String, Object> flatten(final Map<String, Object> map) {
+    public static Map<String, Object> flatten(final Map<String, Object> map)
+    {
         return map.entrySet().stream().flatMap(FlatMapUtil::flatten).collect(LinkedHashMap::new,
-                (m, e) -> m.put("/" + e.getKey(), e.getValue()), LinkedHashMap::putAll);
+                                                                             (m, e) -> m.put("/" + e.getKey(), e.getValue()), LinkedHashMap::putAll);
     }
 
-    private static Stream<Map.Entry<String, Object>> flatten(final Map.Entry<String, Object> entry) {
-
+    private static Stream<Map.Entry<String, Object>> flatten(final Map.Entry<String, Object> entry)
+    {
         if (entry == null) {
             return Stream.empty();
         }
 
         if (entry.getValue() instanceof Map<?, ?>) {
             return ((Map<?, ?>) entry.getValue()).entrySet().stream()
-                    .flatMap(e -> flatten(new AbstractMap.SimpleEntry<>(entry.getKey() + "/" + e.getKey(), e.getValue())));
+                .flatMap(e -> flatten(new AbstractMap.SimpleEntry<>(entry.getKey() + "/" + e.getKey(), e.getValue())));
         }
 
         if (entry.getValue() instanceof List<?>) {
             List<?> list = (List<?>) entry.getValue();
             return IntStream.range(0, list.size())
-                    .mapToObj(i -> new AbstractMap.SimpleEntry<String, Object>(entry.getKey() + "/" + i, list.get(i)))
-                    .flatMap(FlatMapUtil::flatten);
+                .mapToObj(i -> new AbstractMap.SimpleEntry<String, Object>(entry.getKey() + "/" + i, list.get(i)))
+                .flatMap(FlatMapUtil::flatten);
         }
 
         return Stream.of(entry);

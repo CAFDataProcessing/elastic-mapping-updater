@@ -15,12 +15,12 @@
  */
 package com.github.cafdataprocessing.elastic.tools.exceptions;
 
-public final class GetIndexException extends Exception {
-
+public final class GetIndexException extends Exception
+{
     private static final long serialVersionUID = -1301168003826072993L;
 
-    public GetIndexException(final String message) {
+    public GetIndexException(final String message)
+    {
         super(message);
     }
-
 }

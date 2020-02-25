@@ -15,13 +15,12 @@
  */
 package com.github.cafdataprocessing.elastic.tools.exceptions;
 
-public final class GetTemplateException extends Exception {
-
+public final class GetTemplateException extends Exception
+{
     private static final long serialVersionUID = -2290300355432435553L;
 
     public GetTemplateException(final String message)
     {
         super(message);
     }
-
 }

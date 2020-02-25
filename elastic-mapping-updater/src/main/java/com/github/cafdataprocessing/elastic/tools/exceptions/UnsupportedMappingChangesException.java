@@ -15,8 +15,8 @@
  */
 package com.github.cafdataprocessing.elastic.tools.exceptions;
 
-public final class UnsupportedMappingChangesException extends Exception {
-
+public final class UnsupportedMappingChangesException extends Exception
+{
     private static final long serialVersionUID = 693770660322331827L;
 
     public UnsupportedMappingChangesException(final String message)

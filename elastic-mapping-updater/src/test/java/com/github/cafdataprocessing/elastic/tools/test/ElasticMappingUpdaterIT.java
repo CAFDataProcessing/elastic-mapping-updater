@@ -99,8 +99,7 @@ public final class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
         trequest.source(origTemplateSource, XContentType.JSON);
         final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
-        if (!putTemplateResponse.isAcknowledged())
-        {
+        if (!putTemplateResponse.isAcknowledged()) {
             fail();
         }
         LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Creating index matching template {}", templateName);
@@ -109,16 +108,14 @@ public final class ElasticMappingUpdaterIT
         request.id("1");
         request.routing("1");
         String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
-                + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
+            + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try
-        {
+        try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e)
-        {
+        } catch (final ElasticsearchException e) {
             fail();
         }
 
@@ -130,8 +127,7 @@ public final class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
         utrequest.source(updatedTemplateSource, XContentType.JSON);
         final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
-        if (!updateTemplateResponse.isAcknowledged())
-        {
+        if (!updateTemplateResponse.isAcknowledged()) {
             fail();
         }
 
@@ -143,7 +139,7 @@ public final class ElasticMappingUpdaterIT
         @SuppressWarnings("unchecked")
         final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
         @SuppressWarnings("unchecked")
-        final Map<String, Object> propMapping = (Map<String, Object>)props.get("DATE_DISPOSED");
+        final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_DISPOSED");
         assertNotNull("testUpdateIndexesOfUpdatedTemplate", propMapping);
 
         // Index more data
@@ -151,23 +147,21 @@ public final class ElasticMappingUpdaterIT
         request.id("2");
         request.routing("1");
         jsonString = "{"
-                    + "'TITLE':'doc2',"
-                    + "'DATE_PROCESSED':'2020-02-11',"
-                    + "'CONTENT_PRIMARY':'just a test',"
-                    + "'IS_HEAD_OF_FAMILY':true,"
-                    + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
-                    + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
-                + "}";
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
+            + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-        try
-        {
+        try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e)
-        {
+        } catch (final ElasticsearchException e) {
             fail();
         }
 
@@ -191,8 +185,7 @@ public final class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
         trequest.source(origTemplateSource, XContentType.JSON);
         final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
-        if (!putTemplateResponse.isAcknowledged())
-        {
+        if (!putTemplateResponse.isAcknowledged()) {
             fail();
         }
         LOGGER.info("testUpdateUnsupportedChanges - Creating index matching template {}", templateName);
@@ -201,21 +194,19 @@ public final class ElasticMappingUpdaterIT
         request.id("1");
         request.routing("1");
         String jsonString = "{"
-                    + "'TITLE':'doc1',"
-                    + "'DATE_PROCESSED\":'2020-02-11',"
-                    + "'CONTENT_PRIMARY':'just a test',"
-                    + "'IS_HEAD_OF_FAMILY':true,"
-                    + "'PERSON':{ 'NAME':'person1' }"
-                + "}";
+            + "'TITLE':'doc1',"
+            + "'DATE_PROCESSED\":'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person1' }"
+            + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try
-        {
+        try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e)
-        {
+        } catch (final ElasticsearchException e) {
             fail();
         }
 
@@ -227,8 +218,7 @@ public final class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
         utrequest.source(updatedTemplateSource, XContentType.JSON);
         final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
-        if (!updateTemplateResponse.isAcknowledged())
-        {
+        if (!updateTemplateResponse.isAcknowledged()) {
             fail();
         }
 
@@ -241,8 +231,8 @@ public final class ElasticMappingUpdaterIT
         @SuppressWarnings("unchecked")
         final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
         @SuppressWarnings("unchecked")
-        final Map<String, Object> propMapping = (Map<String, Object>)props.get("IS_HEAD_OF_FAMILY");
-        final String propValue = (String)propMapping.get("type");
+        final Map<String, Object> propMapping = (Map<String, Object>) props.get("IS_HEAD_OF_FAMILY");
+        final String propValue = (String) propMapping.get("type");
         // Verify property mapping value is same as before
         assertTrue("testUpdateUnsupportedChanges", propValue.equals("boolean"));
     }
@@ -265,8 +255,7 @@ public final class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
         trequest.source(origTemplateSource, XContentType.JSON);
         final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
-        if (!putTemplateResponse.isAcknowledged())
-        {
+        if (!putTemplateResponse.isAcknowledged()) {
             fail();
         }
         LOGGER.info("testUpdateDynamicTemplateOverwrite - Creating index matching template {}", templateName);
@@ -275,21 +264,19 @@ public final class ElasticMappingUpdaterIT
         request.id("1");
         request.routing("1");
         String jsonString = "{"
-                    + "'TITLE':'doc1',"
-                    + "'DATE_PROCESSED\":'2020-02-11',"
-                    + "'CONTENT_PRIMARY':'just a test',"
-                    + "'IS_HEAD_OF_FAMILY':true,"
-                    + "'PERSON':{ 'NAME':'person1' }"
-                + "}";
+            + "'TITLE':'doc1',"
+            + "'DATE_PROCESSED\":'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person1' }"
+            + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try
-        {
+        try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e)
-        {
+        } catch (final ElasticsearchException e) {
             fail();
         }
 
@@ -301,8 +288,7 @@ public final class ElasticMappingUpdaterIT
         final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
         utrequest.source(updatedTemplateSource, XContentType.JSON);
         final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
-        if (!updateTemplateResponse.isAcknowledged())
-        {
+        if (!updateTemplateResponse.isAcknowledged()) {
             fail();
         }
 
@@ -312,14 +298,11 @@ public final class ElasticMappingUpdaterIT
         // Verify updated index mapping has only one dynamic_template from the new index template
         final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
         Object dynamicTemplatesInTemplate = indexTypeMappings.get("dynamic_templates");
-        if (dynamicTemplatesInTemplate == null)
-        {
+        if (dynamicTemplatesInTemplate == null) {
             fail();
-        }
-        else
-        {
+        } else {
             @SuppressWarnings("unchecked")
-            final Map<String, Object> dynTemplate = (Map<String, Object>)((List<Map<String, Object>>)dynamicTemplatesInTemplate).get(0);
+            final Map<String, Object> dynTemplate = (Map<String, Object>) ((List<Map<String, Object>>) dynamicTemplatesInTemplate).get(0);
             assertTrue("testUpdateDynamicTemplateOverwrite", dynTemplate.size() == 1);
             assertNotNull("testUpdateDynamicTemplateOverwrite", dynTemplate.get("LONG_TEMPLATE"));
         }
@@ -329,23 +312,21 @@ public final class ElasticMappingUpdaterIT
         request.id("2");
         request.routing("1");
         jsonString = "{"
-                    + "'TITLE':'doc2',"
-                    + "'DATE_PROCESSED':'2020-02-11',"
-                    + "'CONTENT_PRIMARY':'just a test',"
-                    + "'IS_HEAD_OF_FAMILY':true,"
-                    + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
-                    + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
-                + "}";
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
+            + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-        try
-        {
+        try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e)
-        {
+        } catch (final ElasticsearchException e) {
             fail();
         }
 
@@ -355,12 +336,9 @@ public final class ElasticMappingUpdaterIT
     private void updateIndex(final String testName, final String templateName)
     {
         LOGGER.info("{}: {}", testName, templateName);
-        try
-        {
+        try {
             ElasticMappingUpdater.update(host, protocol, port, connectTimeout, socketTimeout);
-        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException
-                | GetIndexException | GetTemplateException e)
-        {
+        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException | GetIndexException | GetTemplateException e) {
             LOGGER.error(testName, e);
             fail(testName + ":" + e);
         }
@@ -371,28 +349,23 @@ public final class ElasticMappingUpdaterIT
         InputStream is = null;
         BufferedReader br = null;
 
-        try
-        {
+        try {
             is = ElasticMappingUpdaterIT.class.getResourceAsStream(path);
 
             final StringBuilder sb = new StringBuilder();
             String line;
             br = new BufferedReader(new InputStreamReader(is));
-            while ((line = br.readLine()) != null)
-            {
+            while ((line = br.readLine()) != null) {
                 sb.append(line);
                 sb.append("\n");
             }
             final String content = sb.toString();
             return content;
-        } finally
-        {
-            if (is != null)
-            {
+        } finally {
+            if (is != null) {
                 is.close();
             }
-            if (br != null)
-            {
+            if (br != null) {
                 br.close();
             }
         }
@@ -412,8 +385,7 @@ public final class ElasticMappingUpdaterIT
         assertTrue("Got test document", totalDocs == expectedHitCount);
 
         final SearchHit[] searchHits = searchResponse.getHits().getHits();
-        for (final SearchHit hit : searchHits)
-        {
+        for (final SearchHit hit : searchHits) {
             final Map<String, Object> sourceAsMap = hit.getSourceAsMap();
             LOGGER.info("hit : {}", sourceAsMap);
         }
@@ -426,22 +398,19 @@ public final class ElasticMappingUpdaterIT
         final Response response = client.getLowLevelClient().performRequest(request);
 
         final int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode == 200)
-        {
+        if (statusCode == 200) {
             try (final InputStream resultJsonStream = response.getEntity().getContent();
-                    final XContentParser parser
-                        = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream))
-            {
+                 final XContentParser parser
+                 = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
                 final GetIndexResponse getIndexResponse = GetIndexResponse.fromXContent(parser);
                 final MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
                 final Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
                 LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
                 return indexTypeMappings;
             }
-        } else
-        {
+        } else {
             throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
-                    indexName, statusCode, EntityUtils.toString(response.getEntity())));
+                                                      indexName, statusCode, EntityUtils.toString(response.getEntity())));
         }
     }
 }

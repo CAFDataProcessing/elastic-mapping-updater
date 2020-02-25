@@ -17,7 +17,6 @@ package com.github.cafdataprocessing.elastic.tools;
 
 public final class ElasticSettings
 {
-
     private final String elasticSearchProtocol;
 
     private final String elasticSearchHosts;
@@ -29,8 +28,8 @@ public final class ElasticSettings
     private final int elasticSearchSocketTimeout;
 
     public ElasticSettings(final String elasticSearchProtocol, final String elasticSearchHosts,
-            final int elasticSearchRestPort, final int elasticSearchConnectTimeout,
-            final int elasticSearchSocketTimeout)
+                           final int elasticSearchRestPort, final int elasticSearchConnectTimeout,
+                           final int elasticSearchSocketTimeout)
     {
         this.elasticSearchProtocol = elasticSearchProtocol;
         this.elasticSearchHosts = elasticSearchHosts;
@@ -78,5 +77,4 @@ public final class ElasticSettings
     {
         return elasticSearchSocketTimeout;
     }
-
 }

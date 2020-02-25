@@ -39,7 +39,7 @@
                         "max_token_length_filter",
                         "icu_normalizer"
                     ],
-                    "char_filter": [ ],
+                    "char_filter": [],
                     "tokenizer": "icu_tokenizer"
                 },
                 "path_analyzer": {

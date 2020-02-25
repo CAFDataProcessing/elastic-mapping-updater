@@ -45,7 +45,6 @@ import com.google.common.collect.Maps;
 
 public class ElasticMappingUpdater
 {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(ElasticMappingUpdater.class);
 
     private static final String MAPPING_PROPS_KEY = "properties";
@@ -56,8 +55,9 @@ public class ElasticMappingUpdater
 
     /**
      * Updates the mapping of indexes matching any templates on the Elasticsearch instances.
+     *
      * @param esHostNames Comma separated list of Elasticsearch hostnames
-     * * @param esProtocol The protocol to connect with Elasticsearch server
+     * @param esProtocol The protocol to connect with Elasticsearch server
      * @param esRestPort Elasticsearch REST API port
      * @param esConnectTimeout Timeout until a new connection is fully established
      * @param esSocketTimeout Time of inactivity to wait for packets[data] to be received
@@ -68,29 +68,29 @@ public class ElasticMappingUpdater
      * @throws UnexpectedResponseException thrown if the elasticsearch response cannot be parsed
      */
     public static void update(
-            final String esHostNames,
-            final String esProtocol,
-            final int esRestPort,
-            final int esConnectTimeout,
-            final int esSocketTimeout)
-                    throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+        final String esHostNames,
+        final String esProtocol,
+        final int esRestPort,
+        final int esConnectTimeout,
+        final int esSocketTimeout
+    ) throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
         final ElasticMappingUpdater updater
-                = new ElasticMappingUpdater(esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
+            = new ElasticMappingUpdater(esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
         updater.updateIndexes();
     }
 
     private ElasticMappingUpdater(
-            final String esHostNames,
-            final String esProtocol,
-            final int esRestPort,
-            final int esConnectTimeout,
-            final int esSocketTimeout)
+        final String esHostNames,
+        final String esProtocol,
+        final int esRestPort,
+        final int esConnectTimeout,
+        final int esSocketTimeout)
     {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
-        final ElasticSettings elasticSettings =
-                new ElasticSettings(esProtocol, esHostNames, esRestPort, esConnectTimeout, esSocketTimeout);
+        final ElasticSettings elasticSettings
+            = new ElasticSettings(esProtocol, esHostNames, esRestPort, esConnectTimeout, esSocketTimeout);
 
         final ElasticMappingUpdaterConfiguration schemaUpdaterConfiguration = new ElasticMappingUpdaterConfiguration(elasticSettings);
 
@@ -98,19 +98,16 @@ public class ElasticMappingUpdater
     }
 
     private void updateIndexes()
-            throws IOException, TemplateNotFoundException, GetIndexException,
-            GetTemplateException, UnexpectedResponseException
+        throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
         final List<String> templateNames = elasticRequestHandler.getTemplateNames();
-        for (final String templateName : templateNames)
-        {
+        for (final String templateName : templateNames) {
             updateIndexesForTemplate(templateName);
         }
     }
 
     private void updateIndexesForTemplate(final String templateName)
-            throws IOException, TemplateNotFoundException, GetIndexException,
-            GetTemplateException, UnexpectedResponseException
+        throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
         LOGGER.info("Updating index(es) matching template '{}'", templateName);
 
@@ -118,38 +115,36 @@ public class ElasticMappingUpdater
         final List<String> patterns = template.patterns();
 
         final MappingMetaData mapping = template.mappings();
-        if (mapping == null)
-        {
+        if (mapping == null) {
             LOGGER.info("No mappings in template '{}'", templateName);
             return;
         }
+
         final Map<String, Object> templateTypeMappings = mapping.getSourceAsMap();
 
         // Find all indices that match template patterns
         final List<String> indexes = elasticRequestHandler.getIndexNames(patterns);
         LOGGER.info("Got {} index(es) that match template '{}'", indexes.size(), templateName);
-        for (final String indexName : indexes)
-        {
+        for (final String indexName : indexes) {
             GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
             MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
             Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
 
             LOGGER.info("Comparing IndexMapping for '{}'", indexName);
 
-            try
-            {
+            try {
                 @SuppressWarnings("unchecked")
                 final Map<String, Object> mappingsChanges = getMappingChanges(
-                        (Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
-                        (Map<String, Object>) indexTypeMappings.get(MAPPING_PROPS_KEY));
+                    (Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
+                    (Map<String, Object>) indexTypeMappings.get(MAPPING_PROPS_KEY));
                 LOGGER.info("Mapping changes for index '{}': {}", indexName, mappingsChanges);
                 final Map<String, Object> mappingsRequest = new HashMap<>();
                 mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
                 // Add all dynamic_templates in template to index mapping
                 final Object dynamicTemplatesInTemplate = Optional
-                        .ofNullable(templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
-                        .orElseGet(Collections::emptyList); // Empty list will clear all existing dynamic_templates in index mapping
+                    .ofNullable(templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
+                    .orElseGet(Collections::emptyList); // Empty list will clear all existing dynamic_templates in index mapping
 
                 mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesInTemplate);
 
@@ -161,25 +156,22 @@ public class ElasticMappingUpdater
                 indexMappings = getIndexResponse.getMappings().get(indexName);
                 indexTypeMappings = indexMappings.getSourceAsMap();
                 LOGGER.info("Updated mapping for index '{}': {}", indexName, indexTypeMappings);
-            } catch (final UnsupportedMappingChangesException e)
-            {
+            } catch (final UnsupportedMappingChangesException e) {
                 LOGGER.warn("Unsupported mapping changes for index : {}", indexName, e);
             }
         }
     }
 
     private static boolean isMappingChangeSafe(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
-            throws JsonProcessingException
+        throws JsonProcessingException
     {
         final Map<String, Object> ftemplateMapping = FlatMapUtil.flatten(templateMapping);
         final Map<String, Object> findexMapping = FlatMapUtil.flatten(indexMapping);
         final MapDifference<String, Object> diff = Maps.difference(ftemplateMapping, findexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
-        if (entriesDiffering.isEmpty())
-        {
+        if (entriesDiffering.isEmpty()) {
             return true;
-        } else
-        {
+        } else {
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
             entriesDiffering.forEach((key, value) -> LOGGER.warn("Entries differing : {}:{}", key, value));
@@ -188,7 +180,7 @@ public class ElasticMappingUpdater
     }
 
     private Map<String, Object> getMappingChanges(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
-            throws JsonProcessingException, UnsupportedMappingChangesException
+        throws JsonProcessingException, UnsupportedMappingChangesException
     {
         final Map<String, Object> mappingsChanges = new HashMap<>();
         final MapDifference<String, Object> diff = Maps.difference(templateMapping, indexMapping);
@@ -196,8 +188,7 @@ public class ElasticMappingUpdater
 
         LOGGER.info("Differing entries: {}", objectMapper.writeValueAsString(entriesDiffering));
 
-        if (!isMappingChangeSafe(templateMapping, indexMapping))
-        {
+        if (!isMappingChangeSafe(templateMapping, indexMapping)) {
             throw new UnsupportedMappingChangesException("Unsupported mapping changes");
         }
 
@@ -206,12 +197,10 @@ public class ElasticMappingUpdater
         mappingsChanges.putAll(entriesOnlyInTemplate);
 
         final Set<String> fields = entriesDiffering.keySet();
-        for (final String field : fields)
-        {
+        for (final String field : fields) {
             mappingsChanges.put(field, ((ValueDifference<?>) entriesDiffering.get(field)).leftValue());
         }
 
         return mappingsChanges;
     }
-
 }

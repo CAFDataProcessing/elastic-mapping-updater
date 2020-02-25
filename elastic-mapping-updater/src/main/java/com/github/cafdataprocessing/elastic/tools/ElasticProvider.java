@@ -35,7 +35,7 @@ final class ElasticProvider
         }
         final RestClientBuilder restClientBuilder = RestClient.builder(eshosts);
         restClientBuilder.setRequestConfigCallback(builder -> builder.setConnectTimeout(elasticSettings.getElasticSearchConnectTimeout())
-                .setSocketTimeout(elasticSettings.getElasticSearchSocketTimeout()));
+            .setSocketTimeout(elasticSettings.getElasticSearchSocketTimeout()));
         return restClientBuilder.build();
     }
 }
