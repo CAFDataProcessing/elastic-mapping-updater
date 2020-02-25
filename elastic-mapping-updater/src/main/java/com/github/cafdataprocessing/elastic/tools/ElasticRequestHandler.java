@@ -198,14 +198,24 @@ public class ElasticRequestHandler
 
         // Parse the response
         final JsonNode responseNode = StandardCharsets.UTF_8.equals(contentType.getCharset())
-                ? objectMapper.readTree(responseEntity.getContent()) : objectMapper.readTree(EntityUtils.toString(responseEntity));
+                ? objectMapper.readTree(responseEntity.getContent())
+                : objectMapper.readTree(EntityUtils.toString(responseEntity));
 
         // Check that it is not null
         if (responseNode == null)
         {
             throw new UnexpectedResponseException("JSON response deserialized to null");
         }
-        return response.getStatusLine().getStatusCode() == 200;
+        final int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode == 200)
+        {
+            return true;
+        }
+        else
+        {
+            LOGGER.error("Index Mapping upadate status : {}", statusCode);
+            return false;
+        }
     }
 
     private JsonNode performRequest(final Request request) throws UnexpectedResponseException, IOException
