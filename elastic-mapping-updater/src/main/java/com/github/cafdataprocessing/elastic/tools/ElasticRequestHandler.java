@@ -141,7 +141,7 @@ public class ElasticRequestHandler
     public GetIndexResponse getIndex(final String indexName) throws IOException, IndexNotFoundException
     {
         LOGGER.info("Get index {}", indexName);
-        final Request request = new Request("GET", "/" + indexName);
+        final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
         final Response response = elasticClient.performRequest(request);
 
         final int statusCode = response.getStatusLine().getStatusCode();
