@@ -55,7 +55,7 @@ import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundExcept
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 
-public class ElasticMappingUpdaterIT
+public final class ElasticMappingUpdaterIT
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(ElasticMappingUpdaterIT.class);
     private final ElasticMappingUpdater indexUpdater;
