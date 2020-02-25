@@ -89,7 +89,6 @@ public class ElasticMappingUpdater
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void updateIndexesForTemplate(final String templateName)
             throws IOException, TemplateNotFoundException, UnexpectedResponseException, IndexNotFoundException
     {
@@ -119,6 +118,7 @@ public class ElasticMappingUpdater
 
             try
             {
+                @SuppressWarnings("unchecked")
                 final Map<String, Object> mappingsChanges = getMappingChanges(
                         (Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
                         (Map<String, Object>) indexTypeMappings.get(MAPPING_PROPS_KEY));
