@@ -15,7 +15,7 @@
  */
 package com.github.cafdataprocessing.elastic.tools;
 
-public final class ElasticSettings
+final class ElasticSettings
 {
     private final String elasticSearchProtocol;
 

@@ -47,7 +47,7 @@ import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundExc
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
 
-public final class ElasticRequestHandler
+final class ElasticRequestHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(ElasticRequestHandler.class);
     private final RestClient elasticClient;
