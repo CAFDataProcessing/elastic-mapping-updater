@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.elasticsearch.client.indices.GetIndexResponse;
@@ -127,12 +128,9 @@ public class ElasticMappingUpdater
                 mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
                 // Add all dynamic_templates in template to index mapping
-                Object dynamicTemplatesInTemplate = templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY);
-                if (dynamicTemplatesInTemplate == null)
-                {
-                    // This will clear all existing dynamic_templates in index mapping
-                    dynamicTemplatesInTemplate = Collections.emptyList();
-                }
+                final Object dynamicTemplatesInTemplate = Optional
+                        .ofNullable(templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
+                        .orElseGet(Collections::emptyList); // Empty list will clear all existing dynamic_templates in index mapping
 
                 mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesInTemplate);
 
