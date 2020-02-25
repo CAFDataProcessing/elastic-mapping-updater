@@ -15,7 +15,7 @@
  */
 package com.github.cafdataprocessing.elastic.tools;
 
-public class ElasticMappingUpdaterConfiguration
+public final class ElasticMappingUpdaterConfiguration
 {
     private final ElasticSettings elasticSettings;
 

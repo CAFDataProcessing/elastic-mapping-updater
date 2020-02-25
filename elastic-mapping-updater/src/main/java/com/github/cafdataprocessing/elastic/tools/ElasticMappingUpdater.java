@@ -43,7 +43,7 @@ import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 
-public class ElasticMappingUpdater
+public final class ElasticMappingUpdater
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(ElasticMappingUpdater.class);
 
