@@ -51,7 +51,8 @@ import org.slf4j.LoggerFactory;
 
 import com.github.cafdataprocessing.elastic.tools.ElasticMappingUpdater;
 import com.github.cafdataprocessing.elastic.tools.ElasticRequestHandler;
-import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 
@@ -72,7 +73,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateIndexesOfUpdatedTemplate() throws IOException, IndexNotFoundException
+    public void testUpdateIndexesOfUpdatedTemplate() throws IOException, GetIndexException
     {
         LOGGER.info("Running test 'testUpdateIndexesOfUpdatedTemplate'...");
         final String templateName = "sample-template";
@@ -163,7 +164,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateUnsupportedChanges() throws IOException, IndexNotFoundException
+    public void testUpdateUnsupportedChanges() throws IOException, GetIndexException
     {
         LOGGER.info("Running test 'testUpdateUnsupportedChanges'...");
         final String templateName = "acme-sample-template";
@@ -236,7 +237,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateDynamicTemplateOverwrite() throws IOException, IndexNotFoundException
+    public void testUpdateDynamicTemplateOverwrite() throws IOException, GetIndexException
     {
         LOGGER.info("Running test 'testUpdateDynamicTemplateOverwrite'...");
         final String templateName = "sample-template";
@@ -346,7 +347,8 @@ public final class ElasticMappingUpdaterIT
         try
         {
             indexUpdater.updateIndexesForTemplate(templateName);
-        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException | IndexNotFoundException e)
+        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException
+                | GetIndexException | GetTemplateException e)
         {
             LOGGER.error(testName, e);
             fail(testName + ":" + e);
@@ -406,7 +408,7 @@ public final class ElasticMappingUpdaterIT
         }
     }
 
-    private Map<String, Object> getIndexMapping(final String indexName) throws IOException, IndexNotFoundException
+    private Map<String, Object> getIndexMapping(final String indexName) throws IOException, GetIndexException
     {
         final ElasticRequestHandler elasticRequestHandler = indexUpdater.getElasticRequestHandler();
         // Get the index mapping

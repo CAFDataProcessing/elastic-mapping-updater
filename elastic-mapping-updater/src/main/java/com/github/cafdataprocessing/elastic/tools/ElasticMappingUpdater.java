@@ -33,7 +33,8 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnsupportedMappingChangesException;
@@ -81,7 +82,9 @@ public class ElasticMappingUpdater
         return this.elasticRequestHandler;
     }
 
-    public void updateIndexes() throws IOException, UnexpectedResponseException, TemplateNotFoundException, IndexNotFoundException
+    public void updateIndexes()
+            throws IOException, TemplateNotFoundException, GetIndexException,
+            GetTemplateException, UnexpectedResponseException
     {
         final List<String> templateNames = elasticRequestHandler.getTemplateNames();
         for (final String templateName : templateNames)
@@ -91,7 +94,8 @@ public class ElasticMappingUpdater
     }
 
     public void updateIndexesForTemplate(final String templateName)
-            throws IOException, TemplateNotFoundException, UnexpectedResponseException, IndexNotFoundException
+            throws IOException, TemplateNotFoundException, GetIndexException,
+            GetTemplateException, UnexpectedResponseException
     {
         LOGGER.info("Updating index(es) matching template '{}'", templateName);
 

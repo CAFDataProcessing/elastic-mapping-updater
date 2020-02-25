@@ -41,7 +41,8 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
@@ -81,7 +82,7 @@ public class ElasticRequestHandler
     }
 
     IndexTemplateMetaData getTemplate(final String templateName)
-            throws IOException, TemplateNotFoundException, UnexpectedResponseException
+            throws IOException, TemplateNotFoundException, GetTemplateException
     {
         LOGGER.info("Get template {}", templateName);
         final Request request = new Request("GET", "/_template/" + UrlEscapers.urlPathSegmentEscaper().escape(templateName));
@@ -100,7 +101,7 @@ public class ElasticRequestHandler
                 {
                     if(templates.size() > 1)
                     {
-                        throw new UnexpectedResponseException("Found multiple templates with name : " + templateName);
+                        throw new GetTemplateException("Found multiple templates with name : " + templateName);
                     }
                     return templates.get(0);
                 } else
@@ -110,7 +111,8 @@ public class ElasticRequestHandler
             }
         } else
         {
-            throw new TemplateNotFoundException(templateName + " not found");
+            throw new GetTemplateException(String.format("Error getting template '%s'. Status code: %s, response: %s",
+                    templateName, statusCode, EntityUtils.toString(response.getEntity())));
         }
     }
 
@@ -138,7 +140,7 @@ public class ElasticRequestHandler
         }
     }
 
-    public GetIndexResponse getIndex(final String indexName) throws IOException, IndexNotFoundException
+    public GetIndexResponse getIndex(final String indexName) throws IOException, GetIndexException
     {
         LOGGER.info("Get index {}", indexName);
         final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
@@ -155,7 +157,8 @@ public class ElasticRequestHandler
             }
         } else
         {
-            throw new IndexNotFoundException(indexName + " not found");
+            throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
+                    indexName, statusCode, EntityUtils.toString(response.getEntity())));
         }
     }
 
