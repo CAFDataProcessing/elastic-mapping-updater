@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
@@ -72,15 +74,10 @@ public class ElasticRequestHandler
                     "Get Templates Request Response: response node is present but is unexpectedly not an array");
         } else
         {
-            final List<String> indexes = new ArrayList<>();
-            final Iterator<JsonNode> it = responseNode.iterator();
-
-            while (it.hasNext())
-            {
-                JsonNode n = it.next();
-                indexes.add(n.get("name").asText());
-            }
-            return indexes;
+            return StreamSupport.stream(responseNode.spliterator(), false)
+                    .map(n -> n.get("name"))
+                    .map(JsonNode::asText)
+                    .collect(Collectors.toList());
         }
     }
 
