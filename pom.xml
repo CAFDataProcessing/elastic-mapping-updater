@@ -70,7 +70,6 @@
         <enforceCorrectDependencies>true</enforceCorrectDependencies>
         <enforceBannedDependencies>true</enforceBannedDependencies>
         <jackson-version>2.9.8</jackson-version>
-        <slf4jVersion>1.7.25</slf4jVersion>
     </properties>
 
     <dependencyManagement>
@@ -177,12 +176,7 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>${slf4jVersion}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-simple</artifactId>
-                <version>${slf4jVersion}</version>
+                <version>1.7.25</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>
@@ -203,4 +197,5 @@
             </plugins>
         </pluginManagement>
     </build>
+
 </project>
