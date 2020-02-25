@@ -27,7 +27,8 @@ public static void update(
             final int esRestPort,
             final int esConnectTimeout,
             final int esSocketTimeout)
-    throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+    throws IOException, TemplateNotFoundException, GetIndexException,
+           GetTemplateException, UnexpectedResponseException
 ```
 
 # elastic-mapping-updater-cli
