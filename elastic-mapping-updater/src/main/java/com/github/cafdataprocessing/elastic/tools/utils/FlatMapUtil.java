@@ -24,8 +24,9 @@ import java.util.stream.Stream;
 
 /**
  * This is a utility to help compare complex JSON documents, with nested objects and arrays.
+ * <p>
  * This utility creates a simple map of all the nested JSON nodes as 'JSON pointer' keys for easier comparison.
- *
+ * <pre>
  * Sample JSON:
  *     {
  *       "name": {
@@ -48,9 +49,10 @@ import java.util.stream.Stream;
  *         "machine-learning"
  *       ]
  *     }
-
+ * </pre>
+ *
  * Would be flattened to:
-
+ * <pre>
  *     /name/first: John
  *     /name/last: Doe
  *     /address: Baker st
@@ -60,6 +62,7 @@ import java.util.stream.Stream;
  *     /phones/1/type: mobile
  *     /groups/0: java
  *     /groups/1: machine-learning
+ * </pre>
  */
 public final class FlatMapUtil
 {
@@ -68,7 +71,7 @@ public final class FlatMapUtil
     }
 
     /**
-     * A JSON document with nested objects is represented as a map of maps.
+     * A JSON document with nested objects is represented as a map of maps.<br>
      * Convert a map of maps to a simple map with 'JSON pointer' keys to identify a specific value within a JSON document.
      *
      * @param map Map representing a JSON document to be flattened
