@@ -18,8 +18,6 @@ package com.github.cafdataprocessing.elastic.tools;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -46,6 +44,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
+import com.google.common.net.UrlEscapers;
 
 public class ElasticRequestHandler
 {
@@ -81,10 +80,11 @@ public class ElasticRequestHandler
         }
     }
 
-    IndexTemplateMetaData getTemplate(final String templateName) throws IOException, TemplateNotFoundException
+    IndexTemplateMetaData getTemplate(final String templateName)
+            throws IOException, TemplateNotFoundException, UnexpectedResponseException
     {
         LOGGER.info("Get template {}", templateName);
-        final Request request = new Request("GET", "/_template/" + templateName);
+        final Request request = new Request("GET", "/_template/" + UrlEscapers.urlPathSegmentEscaper().escape(templateName));
         final Response response = elasticClient.performRequest(request);
 
         final int statusCode = response.getStatusLine().getStatusCode();
@@ -98,6 +98,10 @@ public class ElasticRequestHandler
                 final List<IndexTemplateMetaData> templates = getTemplatesResponse.getIndexTemplates();
                 if (templates != null && templates.size() > 0)
                 {
+                    if(templates.size() > 1)
+                    {
+                        throw new UnexpectedResponseException("Found multiple templates with name : " + templateName);
+                    }
                     return templates.get(0);
                 } else
                 {
@@ -106,7 +110,6 @@ public class ElasticRequestHandler
             }
         } else
         {
-            // TODO get more info from response
             throw new TemplateNotFoundException(templateName + " not found");
         }
     }
@@ -114,12 +117,12 @@ public class ElasticRequestHandler
     List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException
     {
         LOGGER.info("Get index names matching pattern(s) : {}", indexNamePatterns);
-        String filter = "";
-        if (indexNamePatterns != null && indexNamePatterns.size() > 0)
-        {
-            filter = "/" + String.join(",", indexNamePatterns);
-        }
-        final Request request = new Request("GET", "/_cat/indices" + filter + "?h=index&=index&format=json");
+        final String filter = (indexNamePatterns != null && !indexNamePatterns.isEmpty())
+                ? "/" + String.join(",", indexNamePatterns)
+                : "";
+        final Request request = new Request("GET", "/_cat/indices"
+                                            + filter
+                                            + "?h=index&=index&format=json");
 
         final JsonNode responseNode = performRequest(request);
 
@@ -128,15 +131,10 @@ public class ElasticRequestHandler
             throw new UnexpectedResponseException("Index Request Response: response node is present but is unexpectedly not an array");
         } else
         {
-            final List<String> indexes = new ArrayList<>();
-            final Iterator<JsonNode> it = responseNode.iterator();
-
-            while (it.hasNext())
-            {
-                JsonNode n = it.next();
-                indexes.add(n.get("index").asText());
-            }
-            return indexes;
+            return StreamSupport.stream(responseNode.spliterator(), false)
+                    .map(n -> n.get("index"))
+                    .map(JsonNode::asText)
+                    .collect(Collectors.toList());
         }
     }
 
