@@ -51,7 +51,7 @@ public class ElasticMappingUpdater
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
 
     private final ObjectMapper objectMapper;
-    public final ElasticRequestHandler elasticRequestHandler;
+    private final ElasticRequestHandler elasticRequestHandler;
 
     public ElasticMappingUpdater()
     {
