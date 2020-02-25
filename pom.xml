@@ -30,8 +30,8 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Elastic Mapping Updater</name>
-    <description>Tool to update ElasticSearch index mappings</description>
+    <name>Elasticsearch Mapping Updater</name>
+    <description>Tool to update Elasticsearch index mappings</description>
     <url>https://github.com/CAFDataProcessing/elastic-mapping-updater</url>
 
     <inceptionYear>2020</inceptionYear>
@@ -58,7 +58,7 @@
     <scm>
         <connection>scm:git:https://github.com/CAFDataProcessing/elastic-mapping-updater.git</connection>
         <developerConnection>scm:git:https://github.com/CAFDataProcessing/elastic-mapping-updater.git</developerConnection>
-        <url>${gitRepo}</url>
+        <url>https://github.com/CAFDataProcessing/elastic-mapping-updater</url>
     </scm>
 
     <properties>
@@ -67,7 +67,6 @@
         <elasticsearch.version>7.2.0</elasticsearch.version>
         <enforceCorrectDependencies>true</enforceCorrectDependencies>
         <enforceBannedDependencies>true</enforceBannedDependencies>
-        <gitRepo>https://github.com/CAFDataProcessing/elastic-mapping-updater</gitRepo>
         <jackson-version>2.9.8</jackson-version>
         <slf4jVersion>1.7.25</slf4jVersion>
     </properties>
@@ -115,11 +114,6 @@
                 <groupId>com.github.cafdataprocessing.elastic</groupId>
                 <artifactId>elastic-mapping-updater</artifactId>
                 <version>1.0.0-SNAPSHOT</version>
-            </dependency>
-            <dependency>
-                <groupId>javax.validation</groupId>
-                <artifactId>validation-api</artifactId>
-                <version>1.1.0.Final</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>

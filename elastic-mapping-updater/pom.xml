@@ -78,10 +78,6 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>javax.validation</groupId>
-            <artifactId>validation-api</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.github.cafapi.logging</groupId>
             <artifactId>caf-logging-logback</artifactId>
             <scope>runtime</scope>
@@ -117,20 +113,6 @@
 
     <build>
         <plugins>
-            <!-- Plugin for compiling the test source files -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>test-compile</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
             <!-- Plugin for running integration tests in the integration-test phase -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -149,6 +131,7 @@
                         <docker.host.address>${docker.host.address}</docker.host.address>
                     </systemPropertyVariables>
                     <environmentVariables>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>http</CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>
                         <CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>${docker.host.address}</CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>
                         <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${es.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
                         <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>

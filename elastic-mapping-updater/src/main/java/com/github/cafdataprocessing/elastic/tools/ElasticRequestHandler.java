@@ -57,7 +57,6 @@ public class ElasticRequestHandler
     public ElasticRequestHandler(final ElasticMappingUpdaterConfiguration schemaUpdaterConfig, final ObjectMapper mapper)
     {
         this.objectMapper = mapper;
-        objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
         this.elasticClient = ElasticProvider.getClient(schemaUpdaterConfig.getElasticSettings());
     }
 

@@ -15,35 +15,38 @@
  */
 package com.github.cafdataprocessing.elastic.tools;
 
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-
-public class ElasticSettings
+public final class ElasticSettings
 {
 
-    @NotNull
-    @Size(min = 1)
-    private String elasticSearchHosts;
+    private final String elasticSearchProtocol;
 
-    @Min(1)
-    private int elasticSearchRestPort;
+    private final String elasticSearchHosts;
 
-    // connect timeout (defaults to 1 second)
-    @NotNull
-    private int elasticSearchConnectTimeout;
+    private final int elasticSearchRestPort;
 
-    // socket timeout (defaults to 30 seconds)
-    @NotNull
-    private int elasticSearchSocketTimeout;
+    private final int elasticSearchConnectTimeout;
 
-    public ElasticSettings(final String elasticSearchHosts, final int elasticSearchRestPort, final int elasticSearchConnectTimeout,
+    private final int elasticSearchSocketTimeout;
+
+    public ElasticSettings(final String elasticSearchProtocol, final String elasticSearchHosts,
+            final int elasticSearchRestPort, final int elasticSearchConnectTimeout,
             final int elasticSearchSocketTimeout)
     {
+        this.elasticSearchProtocol = elasticSearchProtocol;
         this.elasticSearchHosts = elasticSearchHosts;
         this.elasticSearchRestPort = elasticSearchRestPort;
         this.elasticSearchConnectTimeout = elasticSearchConnectTimeout;
         this.elasticSearchSocketTimeout = elasticSearchSocketTimeout;
+    }
+
+    /**
+     * Getter for property 'elasticSearchProtocol'.
+     *
+     * @return Value for property 'elasticSearchProtocol'.
+     */
+    public String getElasticSearchProtocol()
+    {
+        return elasticSearchProtocol;
     }
 
     /**
@@ -57,17 +60,6 @@ public class ElasticSettings
     }
 
     /**
-     * Setter for property 'elasticSearchHosts'.
-     *
-     * @param elasticSearchHosts
-     *            Value to set for property 'elasticSearchHosts'.
-     */
-    public void setElasticSearchHosts(String elasticSearchHosts)
-    {
-        this.elasticSearchHosts = elasticSearchHosts;
-    }
-
-    /**
      * Getter for property 'elasticSearchRestPort'.
      *
      * @return Value for property 'elasticSearchRestPort'.
@@ -77,35 +69,14 @@ public class ElasticSettings
         return elasticSearchRestPort;
     }
 
-    /**
-     * Setter for property 'elasticSearchRestPort'.
-     *
-     * @param elasticSearchRestPort
-     *            Value to set for property 'elasticSearchRestPort'.
-     */
-    public void setElasticSearchRestPort(final int elasticSearchRestPort)
-    {
-        this.elasticSearchRestPort = elasticSearchRestPort;
-    }
-
     public int getElasticSearchConnectTimeout()
     {
         return elasticSearchConnectTimeout;
     }
 
-    public void setElasticSearchConnectTimeout(int elasticSearchConnectTimeout)
-    {
-        this.elasticSearchConnectTimeout = elasticSearchConnectTimeout;
-    }
-
     public int getElasticSearchSocketTimeout()
     {
         return elasticSearchSocketTimeout;
-    }
-
-    public void setElasticSearchSocketTimeout(int elasticSearchSocketTimeout)
-    {
-        this.elasticSearchSocketTimeout = elasticSearchSocketTimeout;
     }
 
 }

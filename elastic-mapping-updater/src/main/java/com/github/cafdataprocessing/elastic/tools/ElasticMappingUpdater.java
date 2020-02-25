@@ -28,6 +28,8 @@ import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.cafdataprocessing.elastic.tools.exceptions.IndexNotFoundException;
@@ -42,10 +44,10 @@ import com.google.common.collect.Maps;
 public class ElasticMappingUpdater
 {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(ElasticMappingUpdater.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ElasticMappingUpdater.class);
 
-    private static String MAPPING_PROPS_KEY = "properties";
-    private static String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
+    private static final String MAPPING_PROPS_KEY = "properties";
+    private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
 
     private final ObjectMapper objectMapper;
     public final ElasticRequestHandler elasticRequestHandler;
@@ -53,14 +55,17 @@ public class ElasticMappingUpdater
     public ElasticMappingUpdater()
     {
         this.objectMapper = new ObjectMapper();
-        final ElasticSettings elasticSettings = new ElasticSettings(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES"),
+        this.objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
+        final ElasticSettings elasticSettings = new ElasticSettings(
+                System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL"),
+                System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES"),
                 Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT")),
                 Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT")),
                 Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT")));
 
         final ElasticMappingUpdaterConfiguration schemaUpdaterConfiguration = new ElasticMappingUpdaterConfiguration(elasticSettings);
 
-        elasticRequestHandler = new ElasticRequestHandler(schemaUpdaterConfiguration, this.objectMapper);
+        elasticRequestHandler = new ElasticRequestHandler(schemaUpdaterConfiguration, objectMapper);
     }
 
     public static void main(final String[] args) throws Exception
@@ -142,13 +147,11 @@ public class ElasticMappingUpdater
             } catch (final UnsupportedMappingChangesException e)
             {
                 LOGGER.warn("Unsupported mapping changes for index : {}", indexName, e);
-                // Continue with next index to be updated
-                continue;
             }
         }
     }
 
-    private boolean isMappingChangeSafe(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
+    private static boolean isMappingChangeSafe(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
             throws JsonProcessingException
     {
         final Map<String, Object> ftemplateMapping = FlatMapUtil.flatten(templateMapping);
@@ -160,7 +163,7 @@ public class ElasticMappingUpdater
             return true;
         } else
         {
-            // ElasticSearch would throw IllegalArgumentException if any such
+            // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
             entriesDiffering.forEach((key, value) -> LOGGER.warn("Entries differing : {}:{}", key, value));
             return false;
