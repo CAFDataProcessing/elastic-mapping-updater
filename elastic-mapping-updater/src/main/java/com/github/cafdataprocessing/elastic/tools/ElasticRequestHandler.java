@@ -164,7 +164,7 @@ public class ElasticRequestHandler
         // Only update properties that are newly added
         LOGGER.info("Update mapping of index {} with changes {}", indexName, mappings);
         final String mappingSource = objectMapper.writeValueAsString(mappings);
-        final Request request = new Request("PUT", "/" + indexName + "/_mapping");
+        final Request request = new Request("PUT", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName) + "/_mapping");
         request.setJsonEntity(mappingSource);
 
         final Response response = elasticClient.performRequest(request);
