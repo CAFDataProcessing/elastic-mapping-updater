@@ -54,35 +54,50 @@ public class ElasticMappingUpdater
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
 
-    public ElasticMappingUpdater()
+    /**
+     * Updates the mapping of indexes matching any templates on the Elasticsearch instances.
+     * @param esHostNames Comma separated list of Elasticsearch hostnames
+     * * @param esProtocol The protocol to connect with Elasticsearch server
+     * @param esRestPort Elasticsearch REST API port
+     * @param esConnectTimeout Timeout until a new connection is fully established
+     * @param esSocketTimeout Time of inactivity to wait for packets[data] to be received
+     * @throws IOException thrown if the elasticsearch request cannot be processed
+     * @throws TemplateNotFoundException thrown if the template cannot be found
+     * @throws GetIndexException thrown if there is an error getting an index
+     * @throws GetTemplateException thrown if there is an error getting a template
+     * @throws UnexpectedResponseException thrown if the elasticsearch response cannot be parsed
+     */
+    public static void update(
+            final String esHostNames,
+            final String esProtocol,
+            final int esRestPort,
+            final int esConnectTimeout,
+            final int esSocketTimeout)
+                    throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+    {
+        final ElasticMappingUpdater updater
+                = new ElasticMappingUpdater(esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
+        updater.updateIndexes();
+    }
+
+    private ElasticMappingUpdater(
+            final String esHostNames,
+            final String esProtocol,
+            final int esRestPort,
+            final int esConnectTimeout,
+            final int esSocketTimeout)
     {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
-        final ElasticSettings elasticSettings = new ElasticSettings(
-                System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL"),
-                System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES"),
-                Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT")),
-                Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT")),
-                Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT")));
+        final ElasticSettings elasticSettings =
+                new ElasticSettings(esProtocol, esHostNames, esRestPort, esConnectTimeout, esSocketTimeout);
 
         final ElasticMappingUpdaterConfiguration schemaUpdaterConfiguration = new ElasticMappingUpdaterConfiguration(elasticSettings);
 
         elasticRequestHandler = new ElasticRequestHandler(schemaUpdaterConfiguration, objectMapper);
     }
 
-    public static void main(final String[] args) throws Exception
-    {
-        final ElasticMappingUpdater updater = new ElasticMappingUpdater();
-        updater.updateIndexes();
-        System.exit(0);
-    }
-
-    public ElasticRequestHandler getElasticRequestHandler()
-    {
-        return this.elasticRequestHandler;
-    }
-
-    public void updateIndexes()
+    private void updateIndexes()
             throws IOException, TemplateNotFoundException, GetIndexException,
             GetTemplateException, UnexpectedResponseException
     {
@@ -93,7 +108,7 @@ public class ElasticMappingUpdater
         }
     }
 
-    public void updateIndexesForTemplate(final String templateName)
+    private void updateIndexesForTemplate(final String templateName)
             throws IOException, TemplateNotFoundException, GetIndexException,
             GetTemplateException, UnexpectedResponseException
     {

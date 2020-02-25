@@ -9,28 +9,40 @@ The tool first finds all index templates in an Elasticsearch instance and update
 - If any of the mapping parameters like "type" has changed for an existing property the index mapping changes will not be applied.
 - If the updated template has any "dynamic_templates" defined in the mapping they will overwrite the existing "dynamic_templates" in the index mapping.
 
-### Configuration
-The following environment variables need to be set:
+It can be used from another Java project by including the following dependency:
 
- - `CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL`
-    The protocol to connect with elasticsearch server
-
- - `CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES`
-    Comma separated list of elasticsearch hostnames
-
- - `CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT`
-    Elasticsearch REST API port
-
- - `CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT`
-    Determines the timeout until a new connection is fully established
-
- - `CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT`
-    This is the time of inactivity to wait for packets[data] to be received
-
-### Usage
-
- You must have `elastic-mapping-updater` on the available classpath. The syntax for using the utility is as follows:
-
+```xml
+<dependency>
+    <groupId>com.github.cafdataprocessing.elastic</groupId>
+    <artifactId>elastic-mapping-updater</artifactId>
+</dependency>
 ```
- java -cp "*" com.github.cafdataprocessing.elastic.tools.ElasticMappingUpdater
+
+It makes the following `static` method available in the `ElasticMappingUpdater` class:
+
+```java
+public static void update(
+            final String esProtocol,
+            final String esHostNames,
+            final int esRestPort,
+            final int esConnectTimeout,
+            final int esSocketTimeout)
+    throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
 ```
+
+# elastic-mapping-updater-cli
+This module provides a simple command-line interface which wraps the `ElasticMappingUpdater.update()` function.
+
+    Usage: elastic-mapping-updater -n=<esHostNames> [-p=<esProtocol>]
+                               [-r=<esRestPort>] [-s=<esConnectTimeout>]
+                               [-t=<esSocketTimeout>]
+        -n, --esHostNames=<esHostNames>
+                Comma separated list of Elasticsearch hostnames
+        -p, --esProtocol=<esProtocol>
+                The protocol to connect with Elasticsearch server.  Default http
+        -r, --esRestPort=<esRestPort>
+                Elasticsearch REST API port. Default 9200
+        -s, --esConnectTimeout=<esConnectTimeout>
+                Determines the timeout until a new connection is fully established. Default 5000 (5 seconds)
+        -t, --esSocketTimeout=<esSocketTimeout>
+                This is the time of inactivity to wait for packets[data] to be received. Default 60000 (1 minute)

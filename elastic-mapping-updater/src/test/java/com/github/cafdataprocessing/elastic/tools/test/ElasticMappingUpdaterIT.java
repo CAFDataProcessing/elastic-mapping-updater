@@ -27,11 +27,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.http.HttpHost;
+import org.apache.http.util.EntityUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -39,6 +42,9 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.PutIndexTemplateRequest;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -50,26 +56,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.cafdataprocessing.elastic.tools.ElasticMappingUpdater;
-import com.github.cafdataprocessing.elastic.tools.ElasticRequestHandler;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
+import com.google.common.net.UrlEscapers;
 
 public final class ElasticMappingUpdaterIT
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(ElasticMappingUpdaterIT.class);
-    private final ElasticMappingUpdater indexUpdater;
     private final RestHighLevelClient client;
+    private final String protocol;
+    private final String host;
+    private final int port;
+    private final int connectTimeout;
+    private final int socketTimeout;
 
     public ElasticMappingUpdaterIT()
     {
-        final String host = System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES");
-        final int port = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT"));
+        protocol = System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL");
+        host = System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES");
+        port = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT"));
+        connectTimeout = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT"));
+        socketTimeout = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT"));
 
         client = new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, "http")));
-
-        indexUpdater = new ElasticMappingUpdater();
     }
 
     @Test
@@ -346,7 +357,7 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("{}: {}", testName, templateName);
         try
         {
-            indexUpdater.updateIndexesForTemplate(templateName);
+            ElasticMappingUpdater.update(host, protocol, port, connectTimeout, socketTimeout);
         } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException
                 | GetIndexException | GetTemplateException e)
         {
@@ -410,12 +421,27 @@ public final class ElasticMappingUpdaterIT
 
     private Map<String, Object> getIndexMapping(final String indexName) throws IOException, GetIndexException
     {
-        final ElasticRequestHandler elasticRequestHandler = indexUpdater.getElasticRequestHandler();
-        // Get the index mapping
-        final GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
-        final MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
-        final Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
-        LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
-        return indexTypeMappings;
+        LOGGER.info("Get index {}", indexName);
+        final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
+        final Response response = client.getLowLevelClient().performRequest(request);
+
+        final int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode == 200)
+        {
+            try (final InputStream resultJsonStream = response.getEntity().getContent();
+                    final XContentParser parser
+                        = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream))
+            {
+                final GetIndexResponse getIndexResponse = GetIndexResponse.fromXContent(parser);
+                final MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
+                final Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
+                LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
+                return indexTypeMappings;
+            }
+        } else
+        {
+            throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
+                    indexName, statusCode, EntityUtils.toString(response.getEntity())));
+        }
     }
 }
