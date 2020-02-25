@@ -68,7 +68,6 @@ public class ElasticRequestHandler
 
         if (!responseNode.isArray())
         {
-            LOGGER.error("Get Templates Request Response: response node is present but is unexpectedly not an array");
             throw new UnexpectedResponseException(
                     "Get Templates Request Response: response node is present but is unexpectedly not an array");
         } else
@@ -94,12 +93,11 @@ public class ElasticRequestHandler
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200)
         {
-            try (final InputStream resultJsonStream = response.getEntity().getContent())
+            try (final InputStream resultJsonStream = response.getEntity().getContent();
+                    final XContentParser parser
+                        = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream))
             {
-                final XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null,
-                        resultJsonStream);
                 final GetIndexTemplatesResponse getTemplatesResponse = GetIndexTemplatesResponse.fromXContent(parser);
-                parser.close();
                 final List<IndexTemplateMetaData> templates = getTemplatesResponse.getIndexTemplates();
                 if (templates != null && templates.size() > 0)
                 {
@@ -130,7 +128,6 @@ public class ElasticRequestHandler
 
         if (!responseNode.isArray())
         {
-            LOGGER.error("Index Request Response: response node is present but is unexpectedly not an array");
             throw new UnexpectedResponseException("Index Request Response: response node is present but is unexpectedly not an array");
         } else
         {
@@ -155,14 +152,11 @@ public class ElasticRequestHandler
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200)
         {
-
-            try (final InputStream resultJsonStream = response.getEntity().getContent())
+            try (final InputStream resultJsonStream = response.getEntity().getContent();
+                    final XContentParser parser
+                        = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream))
             {
-                final XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null,
-                        resultJsonStream);
-                final GetIndexResponse getIndexResponse = GetIndexResponse.fromXContent(parser);
-                parser.close();
-                return getIndexResponse;
+                return GetIndexResponse.fromXContent(parser);
             }
         } else
         {
