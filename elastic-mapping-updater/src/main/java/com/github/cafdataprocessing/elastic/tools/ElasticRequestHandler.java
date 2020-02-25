@@ -49,7 +49,7 @@ import com.google.common.net.UrlEscapers;
 
 public class ElasticRequestHandler
 {
-    private static Logger LOGGER = LoggerFactory.getLogger(ElasticRequestHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ElasticRequestHandler.class);
     private final RestClient elasticClient;
     private final ObjectMapper objectMapper;
 
