@@ -22,6 +22,7 @@ It makes the following `static` method available in the `ElasticMappingUpdater` 
 
 ```java
 public static void update(
+            final boolean dryRun,
             final String esProtocol,
             final String esHostNames,
             final int esRestPort,
@@ -34,16 +35,42 @@ public static void update(
 # elastic-mapping-updater-cli
 This module provides a simple command-line interface which wraps the `ElasticMappingUpdater.update()` function.
 
-    Usage: elastic-mapping-updater -n=<esHostNames> [-p=<esProtocol>]
+    Usage: elastic-mapping-updater [-d] -n=<esHostNames> [-p=<esProtocol>]
                                [-r=<esRestPort>] [-s=<esConnectTimeout>]
                                [-t=<esSocketTimeout>]
+        -d, --dryRun   If true, the tool lists the mapping changes to the indexes but
+                       does not apply them. Defaults to false.
         -n, --esHostNames=<esHostNames>
-                Comma separated list of Elasticsearch hostnames
+                     Comma separated list of Elasticsearch hostnames
         -p, --esProtocol=<esProtocol>
-                The protocol to connect with Elasticsearch server.  Default http
+                     The protocol to connect with Elasticsearch server.  Default
+                       http
         -r, --esRestPort=<esRestPort>
-                Elasticsearch REST API port. Default 9200
+                     Elasticsearch REST API port. Default 9200
         -s, --esConnectTimeout=<esConnectTimeout>
-                Determines the timeout until a new connection is fully established. Default 5000 (5 seconds)
+                     Determines the timeout until a new connection is fully
+                       established. Default 5000 (5 seconds)
         -t, --esSocketTimeout=<esSocketTimeout>
-                This is the time of inactivity to wait for packets[data] to be received. Default 60000 (1 minute)
+                     This is the time of inactivity to wait for packets[data] to be
+                       received. Default 60000 (1 minute)
+
+# elastic-mapping-updater-cli-image
+This module builds a Docker image for the command-line interface, potentially allowing for simpler usage in some environments.
+
+To pull the image, first ensure that you have logged into the Docker registry:
+
+```
+docker login docker.io
+```
+
+Here is an example command for a dry run:
+
+```
+docker container run --rm docker.io/cafdataprocessing/elastic-mapping-updater:<VERSION-NUMBER> -d=true -n=<elasticsearch-hostname>
+```
+
+For a SNAPSHOT version the image name would be:
+```
+docker.io/cafinternal/prereleases:elastic-mapping-updater-<SNAPSHOT-VERSION-NUMBER>
+```
+- The tool must be able to use the Docker Engine.  It is possible to specify the `DOCKER_HOST` environment variable rather than exposing the host network and the `/var/run/docker.sock` pipe.
