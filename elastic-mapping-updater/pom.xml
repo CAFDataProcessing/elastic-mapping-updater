@@ -166,7 +166,7 @@
                     <images>
                         <!-- Elasticsearch image -->
                         <image>
-                            <name>cafinternal/prereleases:opensuse-elasticsearch7-2.0.0-SNAPSHOT</name>
+                            <name>cafapi/opensuse-elasticsearch7:2</name>
                             <alias>elasticsearch</alias>
                             <run>
                                 <env>
