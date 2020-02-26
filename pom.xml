@@ -73,7 +73,7 @@
         <elasticsearch.version>7.2.0</elasticsearch.version>
         <enforceCorrectDependencies>true</enforceCorrectDependencies>
         <enforceBannedDependencies>true</enforceBannedDependencies>
-        <jackson-version>2.9.8</jackson-version>
+        <jackson-version>2.10.2</jackson-version>
     </properties>
 
     <dependencyManagement>
