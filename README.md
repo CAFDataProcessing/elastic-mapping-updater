@@ -57,20 +57,8 @@ This module provides a simple command-line interface which wraps the `ElasticMap
 # elastic-mapping-updater-cli-image
 This module builds a Docker image for the command-line interface, potentially allowing for simpler usage in some environments.
 
-To pull the image, first ensure that you have logged into the Docker registry:
-
-```
-docker login docker.io
-```
-
 Here is an example command for a dry run:
 
 ```
-docker container run --rm docker.io/cafdataprocessing/elastic-mapping-updater:<VERSION-NUMBER> -d=true -n=<elasticsearch-hostname>
+docker container run --rm cafdataprocessing/elastic-mapping-updater -d -n=<elasticsearch-hostname>
 ```
-
-For a SNAPSHOT version the image name would be:
-```
-docker.io/cafinternal/prereleases:elastic-mapping-updater-<SNAPSHOT-VERSION-NUMBER>
-```
-- The tool must be able to use the Docker Engine.  It is possible to specify the `DOCKER_HOST` environment variable rather than exposing the host network and the `/var/run/docker.sock` pipe.
