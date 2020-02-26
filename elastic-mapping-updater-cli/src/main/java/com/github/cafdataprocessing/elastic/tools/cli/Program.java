@@ -31,6 +31,14 @@ public final class Program implements Callable<Void>
     private static final Logger LOGGER = LoggerFactory.getLogger(Program.class);
 
     @Option(
+            names = {"-d", "--dryRun"},
+            paramLabel = "<dryRun>",
+            defaultValue = "false",
+            description = "If true, the tool lists the mapping changes to the indexes but does not apply them. Defaults to false."
+        )
+        private boolean dryRun;
+
+    @Option(
         names = {"-n", "--esHostNames"},
         paramLabel = "<esHostNames>",
         required = true,
@@ -87,7 +95,7 @@ public final class Program implements Callable<Void>
             LOGGER.error("Elasticsearch hostname must be specified.");
             CommandLine.usage(new Program(), System.out);
         } else {
-            ElasticMappingUpdater.update(esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
+            ElasticMappingUpdater.update(dryRun, esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
         }
         return null;
     }

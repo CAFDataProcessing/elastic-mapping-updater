@@ -52,10 +52,12 @@ public final class ElasticMappingUpdater
 
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
+    private final boolean dryRun;
 
     /**
      * Updates the mapping of indexes matching any templates on the Elasticsearch instances.
      *
+     * @param dryRun If true, the tool lists the mapping changes to the indexes but does not apply them
      * @param esHostNames Comma separated list of Elasticsearch hostnames
      * @param esProtocol The protocol to connect with Elasticsearch server
      * @param esRestPort Elasticsearch REST API port
@@ -68,6 +70,7 @@ public final class ElasticMappingUpdater
      * @throws UnexpectedResponseException thrown if the elasticsearch response cannot be parsed
      */
     public static void update(
+        final boolean dryRun,
         final String esHostNames,
         final String esProtocol,
         final int esRestPort,
@@ -76,17 +79,19 @@ public final class ElasticMappingUpdater
     ) throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
         final ElasticMappingUpdater updater
-            = new ElasticMappingUpdater(esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
+            = new ElasticMappingUpdater(dryRun, esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
         updater.updateIndexes();
     }
 
     private ElasticMappingUpdater(
+        final boolean dryRun,
         final String esHostNames,
         final String esProtocol,
         final int esRestPort,
         final int esConnectTimeout,
         final int esSocketTimeout)
     {
+        this.dryRun = dryRun;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
         final ElasticSettings elasticSettings
@@ -109,7 +114,7 @@ public final class ElasticMappingUpdater
     private void updateIndexesForTemplate(final String templateName)
         throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
-        LOGGER.info("Updating index(es) matching template '{}'", templateName);
+        LOGGER.info("---------- Updating index(es) matching template '{}' ----------", templateName);
 
         final IndexTemplateMetaData template = elasticRequestHandler.getTemplate(templateName);
         final List<String> patterns = template.patterns();
@@ -122,9 +127,13 @@ public final class ElasticMappingUpdater
 
         final Map<String, Object> templateTypeMappings = mapping.getSourceAsMap();
 
+        final Object templateProperties = Optional
+                .ofNullable(templateTypeMappings.get(MAPPING_PROPS_KEY))
+                .orElseGet(Collections::emptyMap);
+
         // Find all indices that match template patterns
         final List<String> indexes = elasticRequestHandler.getIndexNames(patterns);
-        LOGGER.info("Got {} index(es) that match template '{}'", indexes.size(), templateName);
+        LOGGER.info("---- Got {} index(es) that match template '{}' ----", indexes.size(), templateName);
         for (final String indexName : indexes) {
             GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
             MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
@@ -133,11 +142,15 @@ public final class ElasticMappingUpdater
             LOGGER.info("Comparing IndexMapping for '{}'", indexName);
 
             try {
+                final Object indexProperties = Optional
+                        .ofNullable(indexTypeMappings.get(MAPPING_PROPS_KEY))
+                        .orElseGet(Collections::emptyMap);
+
                 @SuppressWarnings("unchecked")
                 final Map<String, Object> mappingsChanges = getMappingChanges(
-                    (Map<String, Object>) templateTypeMappings.get(MAPPING_PROPS_KEY),
-                    (Map<String, Object>) indexTypeMappings.get(MAPPING_PROPS_KEY));
-                LOGGER.info("Mapping changes for index '{}': {}", indexName, mappingsChanges);
+                    (Map<String, Object>) templateProperties,
+                    (Map<String, Object>) indexProperties);
+                LOGGER.info("Property mapping changes for index '{}': {}", indexName, mappingsChanges);
                 final Map<String, Object> mappingsRequest = new HashMap<>();
                 mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
@@ -148,14 +161,20 @@ public final class ElasticMappingUpdater
 
                 mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesInTemplate);
 
-                // Update the index mapping
-                elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
-
-                // Get the updated index mapping
-                getIndexResponse = elasticRequestHandler.getIndex(indexName);
-                indexMappings = getIndexResponse.getMappings().get(indexName);
-                indexTypeMappings = indexMappings.getSourceAsMap();
-                LOGGER.info("Updated mapping for index '{}': {}", indexName, indexTypeMappings);
+                if(dryRun)
+                {
+                    LOGGER.info("Mapping updates for index '{}' are: {}", indexName, mappingsRequest);
+                } else
+                {
+                    // Update the index mapping
+                    elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
+    
+                    // Get the updated index mapping
+                    getIndexResponse = elasticRequestHandler.getIndex(indexName);
+                    indexMappings = getIndexResponse.getMappings().get(indexName);
+                    indexTypeMappings = indexMappings.getSourceAsMap();
+                    LOGGER.info("Updated mapping for index '{}': {}", indexName, indexTypeMappings);
+                }
             } catch (final UnsupportedMappingChangesException e) {
                 LOGGER.warn("Unsupported mapping changes for index : {}", indexName, e);
             }

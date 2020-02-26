@@ -337,7 +337,7 @@ public final class ElasticMappingUpdaterIT
     {
         LOGGER.info("{}: {}", testName, templateName);
         try {
-            ElasticMappingUpdater.update(host, protocol, port, connectTimeout, socketTimeout);
+            ElasticMappingUpdater.update(false, host, protocol, port, connectTimeout, socketTimeout);
         } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException | GetIndexException | GetTemplateException e) {
             LOGGER.error(testName, e);
             fail(testName + ":" + e);
