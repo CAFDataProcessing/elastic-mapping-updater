@@ -30,11 +30,6 @@
     <artifactId>elastic-mapping-updater-cli-image</artifactId>
     <packaging>pom</packaging>
 
-    <properties>
-        <maven.install.skip>true</maven.install.skip>
-        <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>com.github.cafdataprocessing.elastic</groupId>
