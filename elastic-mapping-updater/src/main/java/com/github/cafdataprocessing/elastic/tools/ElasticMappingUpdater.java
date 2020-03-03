@@ -177,7 +177,7 @@ public final class ElasticMappingUpdater
                     LOGGER.info("Index mapping updated for '{}': {}", indexName, indexTypeMappings);
                 }
             } catch (final UnsupportedMappingChangesException e) {
-                LOGGER.warn("Unsupported mapping changes for index '{}'. Index mapping will not be updated.", indexName, e);
+                LOGGER.warn("Unsupported mapping changes for index '{}'. Index mapping will not be updated.", indexName);
             }
         }
     }
@@ -194,7 +194,7 @@ public final class ElasticMappingUpdater
         } else {
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
-            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsuported mapping changes : {}:{}", key, value));
+            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsuported mapping change : {}:{}", key, value));
             return false;
         }
     }
