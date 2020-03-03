@@ -61,7 +61,7 @@ final class ElasticRequestHandler
 
     List<String> getTemplateNames() throws UnexpectedResponseException, IOException
     {
-        LOGGER.info("Get template names");
+        LOGGER.debug("Get template names");
 
         final Request request = new Request("GET", "/_cat/templates?h=name&s=name&format=json");
 
@@ -81,7 +81,7 @@ final class ElasticRequestHandler
     IndexTemplateMetaData getTemplate(final String templateName)
         throws IOException, TemplateNotFoundException, GetTemplateException
     {
-        LOGGER.info("Get template {}", templateName);
+        LOGGER.debug("Get template {}", templateName);
         final Request request = new Request("GET", "/_template/" + UrlEscapers.urlPathSegmentEscaper().escape(templateName));
         final Response response = elasticClient.performRequest(request);
 
@@ -109,7 +109,7 @@ final class ElasticRequestHandler
 
     List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException
     {
-        LOGGER.info("Get index names matching pattern(s) : {}", indexNamePatterns);
+        LOGGER.debug("Get index names matching pattern(s) : {}", indexNamePatterns);
         final String filter = (indexNamePatterns != null && !indexNamePatterns.isEmpty())
             ? "/" + String.join(",", indexNamePatterns)
             : "";
@@ -131,7 +131,7 @@ final class ElasticRequestHandler
 
     public GetIndexResponse getIndex(final String indexName) throws IOException, GetIndexException
     {
-        LOGGER.info("Get index {}", indexName);
+        LOGGER.debug("Get index {}", indexName);
         final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
         final Response response = elasticClient.performRequest(request);
 
@@ -152,7 +152,7 @@ final class ElasticRequestHandler
         throws IOException, UnexpectedResponseException
     {
         // Only update properties that are newly added
-        LOGGER.info("Update mapping of index {} with changes {}", indexName, mappings);
+        LOGGER.info("Updating mapping of index '{}' with these changes: {}", indexName, mappings);
         final String mappingSource = objectMapper.writeValueAsString(mappings);
         final Request request = new Request("PUT", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName) + "/_mapping");
         request.setJsonEntity(mappingSource);

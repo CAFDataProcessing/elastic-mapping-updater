@@ -106,6 +106,7 @@ public final class ElasticMappingUpdater
         throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
         final List<String> templateNames = elasticRequestHandler.getTemplateNames();
+        LOGGER.info("Templates found in Elasticsearch: {}", templateNames);
         for (final String templateName : templateNames) {
             updateIndexesForTemplate(templateName);
         }
@@ -121,7 +122,7 @@ public final class ElasticMappingUpdater
 
         final MappingMetaData mapping = template.mappings();
         if (mapping == null) {
-            LOGGER.info("No mappings in template '{}'", templateName);
+            LOGGER.info("No mappings in template '{}'. Indexes for this template will not be updated.", templateName);
             return;
         }
 
@@ -139,7 +140,7 @@ public final class ElasticMappingUpdater
             MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
             Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
 
-            LOGGER.info("Comparing IndexMapping for '{}'", indexName);
+            LOGGER.info("Comparing index mapping for '{}'", indexName);
 
             try {
                 final Object indexProperties = Optional
@@ -150,7 +151,7 @@ public final class ElasticMappingUpdater
                 final Map<String, Object> mappingsChanges = getMappingChanges(
                     (Map<String, Object>) templateProperties,
                     (Map<String, Object>) indexProperties);
-                LOGGER.info("Property mapping changes for index '{}': {}", indexName, mappingsChanges);
+                LOGGER.debug("Property mapping changes for index '{}': {}", indexName, mappingsChanges);
                 final Map<String, Object> mappingsRequest = new HashMap<>();
                 mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
@@ -163,7 +164,7 @@ public final class ElasticMappingUpdater
 
                 if(dryRun)
                 {
-                    LOGGER.info("Mapping updates for index '{}' are: {}", indexName, mappingsRequest);
+                    LOGGER.info("Mapping updates for index '{}' are {}", indexName, mappingsRequest);
                 } else
                 {
                     // Update the index mapping
@@ -173,10 +174,10 @@ public final class ElasticMappingUpdater
                     getIndexResponse = elasticRequestHandler.getIndex(indexName);
                     indexMappings = getIndexResponse.getMappings().get(indexName);
                     indexTypeMappings = indexMappings.getSourceAsMap();
-                    LOGGER.info("Updated mapping for index '{}': {}", indexName, indexTypeMappings);
+                    LOGGER.info("Index mapping updated for '{}': {}", indexName, indexTypeMappings);
                 }
             } catch (final UnsupportedMappingChangesException e) {
-                LOGGER.warn("Unsupported mapping changes for index : {}", indexName, e);
+                LOGGER.warn("Unsupported mapping changes for index '{}'. Index mapping will not be updated.", indexName, e);
             }
         }
     }
@@ -193,7 +194,7 @@ public final class ElasticMappingUpdater
         } else {
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
-            entriesDiffering.forEach((key, value) -> LOGGER.warn("Entries differing : {}:{}", key, value));
+            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsuported mapping changes : {}:{}", key, value));
             return false;
         }
     }
@@ -205,14 +206,14 @@ public final class ElasticMappingUpdater
         final MapDifference<String, Object> diff = Maps.difference(templateMapping, indexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
 
-        LOGGER.info("Differing entries: {}", objectMapper.writeValueAsString(entriesDiffering));
+        LOGGER.debug("Entries differing in template and index mapping: {}", objectMapper.writeValueAsString(entriesDiffering));
 
         if (!isMappingChangeSafe(templateMapping, indexMapping)) {
             throw new UnsupportedMappingChangesException("Unsupported mapping changes");
         }
 
         final Map<String, Object> entriesOnlyInTemplate = diff.entriesOnlyOnLeft();
-        LOGGER.info("Entries only in Template: {}", objectMapper.writeValueAsString(entriesOnlyInTemplate));
+        LOGGER.debug("New entries in template: {}", objectMapper.writeValueAsString(entriesOnlyInTemplate));
         mappingsChanges.putAll(entriesOnlyInTemplate);
 
         final Set<String> fields = entriesDiffering.keySet();
