@@ -169,7 +169,7 @@ public final class ElasticMappingUpdater
                 {
                     // Update the index mapping
                     elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
-    
+
                     // Get the updated index mapping
                     getIndexResponse = elasticRequestHandler.getIndex(indexName);
                     indexMappings = getIndexResponse.getMappings().get(indexName);
@@ -194,7 +194,7 @@ public final class ElasticMappingUpdater
         } else {
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
-            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsuported mapping change : {}:{}", key, value));
+            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsupported mapping change : {}:{}", key, value));
             return false;
         }
     }
