@@ -151,8 +151,7 @@ final class ElasticRequestHandler
     boolean updateIndexMapping(final String indexName, final Map<String, Object> mappings)
         throws IOException, UnexpectedResponseException
     {
-        // Only update properties that are newly added
-        LOGGER.info("Updating mapping of index '{}' with these changes: {}", indexName, mappings);
+        LOGGER.debug("Update mapping of index {}", indexName);
         final String mappingSource = objectMapper.writeValueAsString(mappings);
         final Request request = new Request("PUT", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName) + "/_mapping");
         request.setJsonEntity(mappingSource);

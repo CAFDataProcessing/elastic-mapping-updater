@@ -151,7 +151,7 @@ public final class ElasticMappingUpdater
                 final Map<String, Object> mappingsChanges = getMappingChanges(
                     (Map<String, Object>) templateProperties,
                     (Map<String, Object>) indexProperties);
-                LOGGER.debug("Property mapping changes for index '{}': {}", indexName, mappingsChanges);
+
                 final Map<String, Object> mappingsRequest = new HashMap<>();
                 mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
@@ -167,7 +167,8 @@ public final class ElasticMappingUpdater
                     LOGGER.info("Mapping updates for index '{}' are {}", indexName, mappingsRequest);
                 } else
                 {
-                    // Update the index mapping
+                    // Update the index mapping (only update properties that are newly added)
+                    LOGGER.info("Update mapping of index '{}' with these changes: {}", indexName, mappingsRequest);
                     elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
 
                     // Get the updated index mapping
@@ -194,7 +195,8 @@ public final class ElasticMappingUpdater
         } else {
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
-            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsupported mapping change : {}:{}", key, value));
+            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsupported mapping change : {} - target: {} current: {}",
+                                                                  key, value.leftValue(), value.rightValue()));
             return false;
         }
     }
@@ -206,9 +208,11 @@ public final class ElasticMappingUpdater
         final MapDifference<String, Object> diff = Maps.difference(templateMapping, indexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
 
-        LOGGER.debug("--Entries differing in template and index mapping--");
-        entriesDiffering.forEach((key, value) -> LOGGER.debug("Mapping change : {} - target: {} current: {}",
+        if (!entriesDiffering.isEmpty()) {
+            LOGGER.debug("--Entries differing in template and index mapping--");
+            entriesDiffering.forEach((key, value) -> LOGGER.debug("Mapping change : {} - target: {} current: {}",
                                                               key, value.leftValue(), value.rightValue()));
+        }
 
         if (!isMappingChangeSafe(templateMapping, indexMapping)) {
             throw new UnsupportedMappingChangesException("Unsupported mapping changes");
