@@ -207,7 +207,7 @@ public final class ElasticMappingUpdater
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
 
         LOGGER.debug("--Entries differing in template and index mapping--");
-        entriesDiffering.forEach((key, value) -> LOGGER.warn("Mapping change : {} - target: {} current: {}",
+        entriesDiffering.forEach((key, value) -> LOGGER.debug("Mapping change : {} - target: {} current: {}",
                                                               key, value.leftValue(), value.rightValue()));
 
         if (!isMappingChangeSafe(templateMapping, indexMapping)) {
