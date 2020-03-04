@@ -133,6 +133,7 @@
                         <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>
                         <CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>60000</CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>
                         <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
+                        <ELASTIC_MAPPING_UPDATER_LOG_LEVEL>DEBUG</ELASTIC_MAPPING_UPDATER_LOG_LEVEL>
                     </environmentVariables>
                 </configuration>
             </plugin>

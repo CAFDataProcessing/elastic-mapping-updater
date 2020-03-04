@@ -129,6 +129,33 @@
                     }
                 }
             },
+            "ENTITIES": {
+                "properties": {
+                    "ENTITY_ID": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "GRAMMAR_ID": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "MATCHES": {
+                        "properties": {
+                            "SCORE": {
+                                "type": "double"
+                            },
+                            "VALUE": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            }
+                        }
+                    },
+                    "VALUES": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
             "PERSON": {
                 "properties": {
                     "NAME": {

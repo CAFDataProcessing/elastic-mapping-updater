@@ -54,11 +54,13 @@ This module provides a simple command-line interface which wraps the `ElasticMap
                      This is the time of inactivity to wait for packets[data] to be
                        received. Default 60000 (1 minute)
 
+Set the `ELASTIC_MAPPING_UPDATER_LOG_LEVEL` environment variable to configure the log level for the tool. Default is `INFO`.
+
 # elastic-mapping-updater-cli-image
 This module builds a Docker image for the command-line interface, potentially allowing for simpler usage in some environments.
 
 Here is an example command for a dry run:
 
 ```
-docker container run --rm cafdataprocessing/elastic-mapping-updater -d -n=<elasticsearch-hostname>
+docker container run --rm -e ELASTIC_MAPPING_UPDATER_LOG_LEVEL=DEBUG cafdataprocessing/elastic-mapping-updater -d -n=<elasticsearch-hostname>
 ```

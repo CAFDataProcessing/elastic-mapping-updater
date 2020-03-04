@@ -206,7 +206,9 @@ public final class ElasticMappingUpdater
         final MapDifference<String, Object> diff = Maps.difference(templateMapping, indexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
 
-        LOGGER.debug("Entries differing in template and index mapping: {}", objectMapper.writeValueAsString(entriesDiffering));
+        LOGGER.debug("--Entries differing in template and index mapping--");
+        entriesDiffering.forEach((key, value) -> LOGGER.warn("Mapping change : {} - target: {} current: {}",
+                                                              key, value.leftValue(), value.rightValue()));
 
         if (!isMappingChangeSafe(templateMapping, indexMapping)) {
             throw new UnsupportedMappingChangesException("Unsupported mapping changes");
