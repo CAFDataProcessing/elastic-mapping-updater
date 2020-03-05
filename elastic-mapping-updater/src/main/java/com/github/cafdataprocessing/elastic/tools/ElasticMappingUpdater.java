@@ -16,6 +16,8 @@
 package com.github.cafdataprocessing.elastic.tools;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -50,9 +52,15 @@ public final class ElasticMappingUpdater
     private static final String MAPPING_PROPS_KEY = "properties";
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
 
+    private static final String NO_UPDATES_REQUIRED = "Updates not required";
+    private static final String INDEX_UPDATED = "Updated";
+    private static final String UNSUPPORTED_MAPPING_CHANGES_INDEX_NOT_UPDATED = "Unsupported mapping changes, not updated";
+
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
     private final boolean dryRun;
+
+    private final Map<String, List<String>> updateStatus;
 
     /**
      * Updates the mapping of indexes matching any templates on the Elasticsearch instances.
@@ -80,6 +88,9 @@ public final class ElasticMappingUpdater
     {
         final ElasticMappingUpdater updater
             = new ElasticMappingUpdater(dryRun, esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
+        LOGGER.info("Updating indexes on '{}'. {}", esHostNames,
+                dryRun ? "This is a dry run. No indexes will actually be updated."
+                       : "Indexes with no mapping conflicts will be updated.");
         updater.updateIndexes();
     }
 
@@ -94,6 +105,7 @@ public final class ElasticMappingUpdater
         this.dryRun = dryRun;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
+        updateStatus = new HashMap<>();
         final ElasticSettings elasticSettings
             = new ElasticSettings(esProtocol, esHostNames, esRestPort, esConnectTimeout, esSocketTimeout);
 
@@ -110,6 +122,7 @@ public final class ElasticMappingUpdater
         for (final String templateName : templateNames) {
             updateIndexesForTemplate(templateName);
         }
+        LOGGER.info("Updates completed: {}", objectMapper.writeValueAsString(updateStatus));
     }
 
     private void updateIndexesForTemplate(final String templateName)
@@ -123,6 +136,7 @@ public final class ElasticMappingUpdater
         final MappingMetaData mapping = template.mappings();
         if (mapping == null) {
             LOGGER.info("No mappings in template '{}'. Indexes for this template will not be updated.", templateName);
+            updateStatus.put(templateName, Arrays.asList(NO_UPDATES_REQUIRED));
             return;
         }
 
@@ -135,6 +149,7 @@ public final class ElasticMappingUpdater
         // Find all indices that match template patterns
         final List<String> indexes = elasticRequestHandler.getIndexNames(patterns);
         LOGGER.info("---- Got {} index(es) that match template '{}' ----", indexes.size(), templateName);
+        final List<String> indexStatus = new ArrayList<>();
         for (final String indexName : indexes) {
             GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
             MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
@@ -177,9 +192,12 @@ public final class ElasticMappingUpdater
                     indexTypeMappings = indexMappings.getSourceAsMap();
                     LOGGER.info("Index mapping updated for '{}': {}", indexName, indexTypeMappings);
                 }
+                indexStatus.add(String.format("%s : %s", indexName, INDEX_UPDATED));
             } catch (final UnsupportedMappingChangesException e) {
                 LOGGER.warn("Unsupported mapping changes for index '{}'. Index mapping will not be updated.", indexName);
+                indexStatus.add(String.format("%s : %s", indexName, UNSUPPORTED_MAPPING_CHANGES_INDEX_NOT_UPDATED));
             }
+            updateStatus.put(templateName, indexStatus);
         }
     }
 
