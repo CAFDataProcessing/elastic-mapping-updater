@@ -61,7 +61,7 @@ final class ElasticRequestHandler
 
     List<String> getTemplateNames() throws UnexpectedResponseException, IOException
     {
-        LOGGER.debug("Get template names");
+        LOGGER.debug("Getting template names...");
 
         final Request request = new Request("GET", "/_cat/templates?h=name&s=name&format=json");
 
@@ -81,7 +81,7 @@ final class ElasticRequestHandler
     IndexTemplateMetaData getTemplate(final String templateName)
         throws IOException, TemplateNotFoundException, GetTemplateException
     {
-        LOGGER.debug("Get template {}", templateName);
+        LOGGER.debug("Getting template {}...", templateName);
         final Request request = new Request("GET", "/_template/" + UrlEscapers.urlPathSegmentEscaper().escape(templateName));
         final Response response = elasticClient.performRequest(request);
 
@@ -109,7 +109,7 @@ final class ElasticRequestHandler
 
     List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException
     {
-        LOGGER.debug("Get index names matching pattern(s) : {}", indexNamePatterns);
+        LOGGER.debug("Getting index names matching pattern(s) : {}...", indexNamePatterns);
         final String filter = (indexNamePatterns != null && !indexNamePatterns.isEmpty())
             ? "/" + String.join(",", indexNamePatterns)
             : "";
@@ -131,7 +131,7 @@ final class ElasticRequestHandler
 
     public GetIndexResponse getIndex(final String indexName) throws IOException, GetIndexException
     {
-        LOGGER.debug("Get index {}", indexName);
+        LOGGER.debug("Getting index {}...", indexName);
         final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
         final Response response = elasticClient.performRequest(request);
 
@@ -151,7 +151,7 @@ final class ElasticRequestHandler
     boolean updateIndexMapping(final String indexName, final Map<String, Object> mappings)
         throws IOException, UnexpectedResponseException
     {
-        LOGGER.debug("Update mapping of index {}", indexName);
+        LOGGER.debug("Updating mapping of index {} with these changes {}...", indexName, mappings);
         final String mappingSource = objectMapper.writeValueAsString(mappings);
         final Request request = new Request("PUT", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName) + "/_mapping");
         request.setJsonEntity(mappingSource);

@@ -17,7 +17,6 @@ package com.github.cafdataprocessing.elastic.tools;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -52,15 +51,9 @@ public final class ElasticMappingUpdater
     private static final String MAPPING_PROPS_KEY = "properties";
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
 
-    private static final String NO_UPDATES_REQUIRED = "Updates not required";
-    private static final String INDEX_UPDATED = "Updated";
-    private static final String UNSUPPORTED_MAPPING_CHANGES_INDEX_NOT_UPDATED = "Unsupported mapping changes, not updated";
-
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
     private final boolean dryRun;
-
-    private final Map<String, List<String>> updateStatus;
 
     /**
      * Updates the mapping of indexes matching any templates on the Elasticsearch instances.
@@ -105,7 +98,6 @@ public final class ElasticMappingUpdater
         this.dryRun = dryRun;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
-        updateStatus = new HashMap<>();
         final ElasticSettings elasticSettings
             = new ElasticSettings(esProtocol, esHostNames, esRestPort, esConnectTimeout, esSocketTimeout);
 
@@ -122,13 +114,12 @@ public final class ElasticMappingUpdater
         for (final String templateName : templateNames) {
             updateIndexesForTemplate(templateName);
         }
-        LOGGER.info("Updates completed: {}", objectMapper.writeValueAsString(updateStatus));
     }
 
     private void updateIndexesForTemplate(final String templateName)
         throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
-        LOGGER.info("---------- Updating index(es) matching template '{}' ----------", templateName);
+        LOGGER.info("---- Analyzing indexes matching template '{}' ----", templateName);
 
         final IndexTemplateMetaData template = elasticRequestHandler.getTemplate(templateName);
         final List<String> patterns = template.patterns();
@@ -136,7 +127,6 @@ public final class ElasticMappingUpdater
         final MappingMetaData mapping = template.mappings();
         if (mapping == null) {
             LOGGER.info("No mappings in template '{}'. Indexes for this template will not be updated.", templateName);
-            updateStatus.put(templateName, Arrays.asList(NO_UPDATES_REQUIRED));
             return;
         }
 
@@ -148,8 +138,7 @@ public final class ElasticMappingUpdater
 
         // Find all indices that match template patterns
         final List<String> indexes = elasticRequestHandler.getIndexNames(patterns);
-        LOGGER.info("---- Got {} index(es) that match template '{}' ----", indexes.size(), templateName);
-        final List<String> indexStatus = new ArrayList<>();
+        LOGGER.info("Found {} index(es) that match template '{}'", indexes.size(), templateName);
         for (final String indexName : indexes) {
             GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
             MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
@@ -171,34 +160,50 @@ public final class ElasticMappingUpdater
                 mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
                 // Add all dynamic_templates in template to index mapping
-                final Object dynamicTemplatesInTemplate = Optional
+                @SuppressWarnings("unchecked")
+                final List<Object> dynamicTemplatesInTemplate = (List<Object>) Optional
                     .ofNullable(templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
                     .orElseGet(Collections::emptyList); // Empty list will clear all existing dynamic_templates in index mapping
 
-                mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesInTemplate);
+                @SuppressWarnings("unchecked")
+                final List<Object> dynamicTemplatesInIndex = (List<Object>) Optional
+                        .ofNullable(indexTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
+                        .orElseGet(Collections::emptyList);
 
-                if(dryRun)
-                {
-                    LOGGER.info("Mapping updates for index '{}' are {}", indexName, mappingsRequest);
-                } else
-                {
-                    // Update the index mapping (only update properties that are newly added)
-                    LOGGER.info("Update mapping of index '{}' with these changes: {}", indexName, mappingsRequest);
-                    elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
+                final List<Object> dynamicTemplatesUpdates = new ArrayList<>(dynamicTemplatesInTemplate);
 
-                    // Get the updated index mapping
-                    getIndexResponse = elasticRequestHandler.getIndex(indexName);
-                    indexMappings = getIndexResponse.getMappings().get(indexName);
-                    indexTypeMappings = indexMappings.getSourceAsMap();
-                    LOGGER.info("Index mapping updated for '{}': {}", indexName, indexTypeMappings);
+                LOGGER.debug("Dynamic_templates: current: {} target: {}", dynamicTemplatesInIndex, dynamicTemplatesInTemplate);
+
+                final boolean dynamicTemplatesHaveChanged = hasDynamicTemplateChanged(dynamicTemplatesInTemplate,
+                                                                                      dynamicTemplatesInIndex);
+
+                LOGGER.info("{}", dynamicTemplatesHaveChanged ? "Current dynamic_templates will be replaced with updated version."
+                                                              : "No dynamic_template changes required.");
+
+                mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesUpdates);
+
+                LOGGER.info("'{}' comparison complete.", indexName);
+                final boolean indexNeedsUpdates = !mappingsChanges.isEmpty() || dynamicTemplatesHaveChanged;
+                if(!indexNeedsUpdates)
+                {
+                    LOGGER.info("No index mapping changes required.");
                 }
-                indexStatus.add(String.format("%s : %s", indexName, INDEX_UPDATED));
+
+                if(!dryRun)
+                {
+                    // Update the index mapping
+                    if(indexNeedsUpdates)
+                    {
+                        LOGGER.info("Updating index mapping...");
+                        elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
+                        LOGGER.info("Index mapping updated");
+                    }
+                }
             } catch (final UnsupportedMappingChangesException e) {
-                LOGGER.warn("Unsupported mapping changes for index '{}'. Index mapping will not be updated.", indexName);
-                indexStatus.add(String.format("%s : %s", indexName, UNSUPPORTED_MAPPING_CHANGES_INDEX_NOT_UPDATED));
+                LOGGER.warn("Index cannot be updated due to unsupported mapping changes.");
             }
-            updateStatus.put(templateName, indexStatus);
         }
+        LOGGER.info("---- Analysis of indexes matching template '{}' completed ----", templateName);
     }
 
     private static boolean isMappingChangeSafe(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
@@ -213,8 +218,8 @@ public final class ElasticMappingUpdater
         } else {
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
-            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsupported mapping change : {} - target: {} current: {}",
-                                                                  key, value.leftValue(), value.rightValue()));
+            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsupported mapping change : {} - current: {} target: {}",
+                                                                  key, value.rightValue(), value.leftValue()));
             return false;
         }
     }
@@ -227,24 +232,39 @@ public final class ElasticMappingUpdater
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
 
         if (!entriesDiffering.isEmpty()) {
-            LOGGER.debug("--Entries differing in template and index mapping--");
-            entriesDiffering.forEach((key, value) -> LOGGER.debug("Mapping change : {} - target: {} current: {}",
-                                                              key, value.leftValue(), value.rightValue()));
+            LOGGER.info("--Differences between template and index mapping--");
+            entriesDiffering.forEach((key, value) -> LOGGER.info("  {} - current: {} target: {}",
+                                                              key, value.rightValue(), value.leftValue()));
         }
 
         if (!isMappingChangeSafe(templateMapping, indexMapping)) {
             throw new UnsupportedMappingChangesException("Unsupported mapping changes");
         }
 
-        final Map<String, Object> entriesOnlyInTemplate = diff.entriesOnlyOnLeft();
-        LOGGER.debug("New entries in template: {}", objectMapper.writeValueAsString(entriesOnlyInTemplate));
-        mappingsChanges.putAll(entriesOnlyInTemplate);
-
         final Set<String> fields = entriesDiffering.keySet();
+        LOGGER.info("{}", fields.isEmpty() ?
+                          "No changes required to existing properties."
+                          : "Properties to be changed: " + fields);
         for (final String field : fields) {
             mappingsChanges.put(field, ((ValueDifference<?>) entriesDiffering.get(field)).leftValue());
         }
 
+        final Map<String, Object> entriesOnlyInTemplate = diff.entriesOnlyOnLeft();
+        final Set<String> newProperties = entriesOnlyInTemplate.keySet();
+        LOGGER.info("{}", newProperties.isEmpty() ?
+                          "No new properties to add."
+                          : "Properties to be added: " + newProperties);
+        mappingsChanges.putAll(entriesOnlyInTemplate);
         return mappingsChanges;
     }
+
+    private boolean hasDynamicTemplateChanged(List<Object> dynamicTemplatesInTemplate, List<Object> dynamicTemplatesInIndex)
+    {
+        if(dynamicTemplatesInTemplate.size() != dynamicTemplatesInIndex.size())
+        {
+            return true;
+        }
+        return dynamicTemplatesInTemplate.retainAll(dynamicTemplatesInIndex);
+    }
+
 }
