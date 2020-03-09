@@ -62,5 +62,9 @@ This module builds a Docker image for the command-line interface, potentially al
 Here is an example command for a dry run:
 
 ```
-docker container run --rm -e ELASTIC_MAPPING_UPDATER_LOG_LEVEL=DEBUG cafdataprocessing/elastic-mapping-updater -d -n=<elasticsearch-hostname>
+docker container run --rm \
+    --env ELASTIC_MAPPING_UPDATER_LOG_LEVEL=DEBUG \
+    cafdataprocessing/elastic-mapping-updater \
+    --dryRun \
+    --esHostNames=<elasticsearch-hostname>
 ```
