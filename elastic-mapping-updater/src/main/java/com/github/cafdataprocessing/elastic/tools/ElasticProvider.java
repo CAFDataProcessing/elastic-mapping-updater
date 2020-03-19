@@ -28,10 +28,11 @@ final class ElasticProvider
     @Nonnull
     public static RestClient getClient(final ElasticSettings elasticSettings)
     {
+        final String scheme = elasticSettings.getElasticSearchProtocol();
         final String[] hosts = elasticSettings.getElasticSearchHosts().split(",");
         final HttpHost eshosts[] = new HttpHost[hosts.length];
         for (int i = 0; i < hosts.length; i++) {
-            eshosts[i] = new HttpHost(hosts[i].trim(), elasticSettings.getElasticSearchRestPort());
+            eshosts[i] = new HttpHost(hosts[i].trim(), elasticSettings.getElasticSearchRestPort(), scheme);
         }
         final RestClientBuilder restClientBuilder = RestClient.builder(eshosts);
         restClientBuilder.setRequestConfigCallback(builder -> builder.setConnectTimeout(elasticSettings.getElasticSearchConnectTimeout())
