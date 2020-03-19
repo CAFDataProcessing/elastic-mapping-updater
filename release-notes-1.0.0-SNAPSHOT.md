@@ -2,7 +2,7 @@
 ${version-number}
 
 #### New Features
-- Initial commit
+- Initial version
 
 #### Known Issues
 - None
