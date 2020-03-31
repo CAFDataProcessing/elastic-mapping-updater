@@ -62,33 +62,48 @@
                         <image>
                             <name>${dockerCafDataProcessingOrg}elastic-mapping-updater${dockerProjectVersion}</name>
                             <build>
-                                <from>cafapi/opensuse-jre8:2</from>
-                                <runCmds>
-                                    <run>zypper -n install bind-utils</run>
-                                </runCmds>
-                                <labels>
-                                    <Build.Number>${project.version}</Build.Number>
-                                    <Build.Date>${maven.build.timestamp}</Build.Date>
-                                    <Git.Repo>https://github.com/CAFDataProcessing/elastic-mapping-updater</Git.Repo>
-                                    <Git.Branch>${git.branch}</Git.Branch>
-                                    <Git.Commit>${git.revision}</Git.Commit>
-                                </labels>
-                                <entryPoint>
-                                    <arg>/tini</arg>
-                                    <arg>--</arg>
-                                    <arg>/startup/startup.sh</arg>
-                                    <arg>sleep</arg>
-                                    <arg>2000000</arg>
+                                <dockerFileDir>.</dockerFileDir>
+                                <dockerFile>Dockerfile</dockerFile>
+                                <args>
+                                    <!-- Labels used for image tagging -->
+                                    <BUILD_NUMBER>${project.version}</BUILD_NUMBER>
+                                    <BUILD_DATE>${maven.build.timestamp}</BUILD_DATE>
+                                    <GIT_REPO>${project.scm.url}</GIT_REPO>
+                                    <GIT_BRANCH>${git.branch}</GIT_BRANCH>
+                                    <GIT_COMMIT>${git.revision}</GIT_COMMIT>
+
+                                    <!-- Enable internet access -->
+                                    <http_proxy>${env.HTTP_PROXY}</http_proxy>
+                                    <https_proxy>${env.HTTPS_PROXY}</https_proxy>
+                                    <no_proxy>${env.NO_PROXY}</no_proxy>
+                                </args>
+<!--                                <from>cafapi/opensuse-jre8:2</from>-->
+<!--                                <runCmds>-->
+<!--                                    <run>zypper -n refresh &amp;&amp; zypper -n install bind-utils</run>-->
+<!--                                </runCmds>-->
+<!--                                <labels>-->
+<!--                                    <Build.Number>${project.version}</Build.Number>-->
+<!--                                    <Build.Date>${maven.build.timestamp}</Build.Date>-->
+<!--                                    <Git.Repo>https://github.com/CAFDataProcessing/elastic-mapping-updater</Git.Repo>-->
+<!--                                    <Git.Branch>${git.branch}</Git.Branch>-->
+<!--                                    <Git.Commit>${git.revision}</Git.Commit>-->
+<!--                                </labels>-->
+<!--                                <entryPoint>-->
+<!--                                    <arg>/tini</arg>-->
+<!--                                    <arg>&#45;&#45;</arg>-->
+<!--                                    <arg>/startup/startup.sh</arg>-->
+<!--                                    <arg>sleep</arg>-->
+<!--                                    <arg>2000000</arg>-->
 <!--                                    <arg>java</arg>-->
 <!--                                    <arg>-Djavax.net.debug=ssl:handshake:verbose:keymanager:trustmanager</arg>-->
 <!--                                    <arg>-Djava.security.debug=access:stack</arg>-->
 <!--                                    <arg>-jar</arg>-->
 <!--                                    <arg>/maven/elastic-mapping-updater-cli-${project.version}.jar</arg>-->
-                                </entryPoint>
-                                <assembly>
-                                    <mode>tar</mode>
-                                    <descriptor>assembly.xml</descriptor>
-                                </assembly>
+<!--                                </entryPoint>-->
+<!--                                <assembly>-->
+<!--                                    <mode>tar</mode>-->
+<!--                                    <descriptor>assembly.xml</descriptor>-->
+<!--                                </assembly>-->
                             </build>
                         </image>
                     </images>
