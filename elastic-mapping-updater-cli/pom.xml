@@ -24,7 +24,7 @@
     <parent>
         <groupId>com.github.cafdataprocessing.elastic</groupId>
         <artifactId>elastic-mapping-updater-aggregator</artifactId>
-        <version>1.0.1-SNAPSHOT</version>
+        <version>1.0.1-22</version>
     </parent>
 
     <artifactId>elastic-mapping-updater-cli</artifactId>
