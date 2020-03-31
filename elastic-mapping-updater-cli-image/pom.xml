@@ -63,6 +63,9 @@
                             <name>${dockerCafDataProcessingOrg}elastic-mapping-updater${dockerProjectVersion}</name>
                             <build>
                                 <from>cafapi/opensuse-jre8:2</from>
+                                <runCmds>
+                                    <run>zypper -n install bind-utils</run>
+                                </runCmds>
                                 <labels>
                                     <Build.Number>${project.version}</Build.Number>
                                     <Build.Date>${maven.build.timestamp}</Build.Date>
@@ -74,11 +77,13 @@
                                     <arg>/tini</arg>
                                     <arg>--</arg>
                                     <arg>/startup/startup.sh</arg>
-                                    <arg>java</arg>
-                                    <arg>-Djavax.net.debug=ssl:handshake:verbose:keymanager:trustmanager</arg>
-                                    <arg>-Djava.security.debug=access:stack</arg>
-                                    <arg>-jar</arg>
-                                    <arg>/maven/elastic-mapping-updater-cli-${project.version}.jar</arg>
+                                    <arg>sleep</arg>
+                                    <arg>2000000</arg>
+<!--                                    <arg>java</arg>-->
+<!--                                    <arg>-Djavax.net.debug=ssl:handshake:verbose:keymanager:trustmanager</arg>-->
+<!--                                    <arg>-Djava.security.debug=access:stack</arg>-->
+<!--                                    <arg>-jar</arg>-->
+<!--                                    <arg>/maven/elastic-mapping-updater-cli-${project.version}.jar</arg>-->
                                 </entryPoint>
                                 <assembly>
                                     <mode>tar</mode>
