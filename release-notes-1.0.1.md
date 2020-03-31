@@ -1,9 +1,11 @@
-
 #### Version Number
 ${version-number}
 
-#### Bug Fixes
+#### New Features
+- None
 
-* **SCMOD-9173**: Upgrade Httpclient to 4.5.12 to resolve an SSL verification issue.
+#### Bug Fixes
+- **SCMOD-9173**: Upgraded Httpclient to version 4.5.12 in order to resolve an SSL verification issue.
 
 #### Known Issues
+- None
