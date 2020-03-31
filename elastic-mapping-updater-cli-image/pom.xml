@@ -75,8 +75,6 @@
                                     <arg>--</arg>
                                     <arg>/startup/startup.sh</arg>
                                     <arg>java</arg>
-                                    <arg>-Djavax.net.debug=ssl:handshake:verbose:keymanager:trustmanager</arg>
-                                    <arg>-Djava.security.debug=access:stack</arg>
                                     <arg>-jar</arg>
                                     <arg>/maven/elastic-mapping-updater-cli-${project.version}.jar</arg>
                                 </entryPoint>
