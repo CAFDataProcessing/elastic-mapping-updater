@@ -76,6 +76,13 @@
 
     <dependencyManagement>
         <dependencies>
+            <!--Need to override as there are test failures with latest version 8.5.0-->
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-core</artifactId>
+                <version>8.0.0</version>
+            </dependency>
+
             <!--Centralized CAF dependency BOM-->
             <dependency>
                 <groupId>com.github.cafapi</groupId>
