@@ -61,6 +61,12 @@ import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateExceptio
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
+import java.net.ConnectException;
+import java.net.HttpRetryException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import org.apache.http.conn.ConnectTimeoutException;
 
 public final class ElasticMappingUpdaterIT
 {
@@ -84,7 +90,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateIndexesOfUpdatedTemplate() throws IOException, GetIndexException
+    public void testUpdateIndexesOfUpdatedTemplate() throws IOException, GetIndexException, InterruptedException
     {
         LOGGER.info("Running test 'testUpdateIndexesOfUpdatedTemplate'...");
         final String templateName = "sample-template";
@@ -112,10 +118,10 @@ public final class ElasticMappingUpdaterIT
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try {
-            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
-            assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        final boolean needsRetries = indexDocumentWithRetry(request);
+        if(needsRetries)
+        {
+            // Indexing has failed after multiple retries
             fail();
         }
 
@@ -169,7 +175,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateUnsupportedChanges() throws IOException, GetIndexException
+    public void testUpdateUnsupportedChanges() throws IOException, GetIndexException, InterruptedException
     {
         LOGGER.info("Running test 'testUpdateUnsupportedChanges'...");
         final String templateName = "acme-sample-template";
@@ -203,10 +209,10 @@ public final class ElasticMappingUpdaterIT
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try {
-            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
-            assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        final boolean needsRetries = indexDocumentWithRetry(request);
+        if(needsRetries)
+        {
+            // Indexing has failed after multiple retries
             fail();
         }
 
@@ -238,7 +244,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateDynamicTemplateOverwrite() throws IOException, GetIndexException
+    public void testUpdateDynamicTemplateOverwrite() throws IOException, GetIndexException, InterruptedException
     {
         LOGGER.info("Running test 'testUpdateDynamicTemplateOverwrite'...");
         final String templateName = "sample-template";
@@ -273,13 +279,12 @@ public final class ElasticMappingUpdaterIT
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        try {
-            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
-            assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        boolean needsRetries = indexDocumentWithRetry(request);
+        if(needsRetries)
+        {
+            // Indexing has failed after multiple retries
             fail();
         }
-
         verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
 
         LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating template {}", templateName);
@@ -323,10 +328,10 @@ public final class ElasticMappingUpdaterIT
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-        try {
-            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
-            assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        needsRetries = indexDocumentWithRetry(request);
+        if(needsRetries)
+        {
+            // Indexing has failed after multiple retries
             fail();
         }
 
@@ -412,5 +417,69 @@ public final class ElasticMappingUpdaterIT
             throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
                                                       indexName, statusCode, EntityUtils.toString(response.getEntity())));
         }
+    }
+
+    private boolean indexDocumentWithRetry(final IndexRequest request) throws InterruptedException
+    {
+        boolean retry = true;
+        for (int i = 0; i < 3; i++) {
+            retry = indexDocument(request);
+            if (!retry) {
+                break;
+            }
+            Thread.sleep(3000);
+        }
+        return retry;
+    }
+
+    private boolean indexDocument(final IndexRequest request)
+    {
+        try{
+            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
+            assertTrue(response.status() == RestStatus.CREATED);
+        }
+        catch(final IOException ex)
+        {
+            return isServiceUnAvailableException(ex);
+        }
+        return false;
+    }
+
+    private static boolean isServiceUnAvailableException(final Exception ex)
+    {
+        final Throwable cause = ex.getCause();
+
+        if (cause instanceof Exception && cause != ex && isServiceUnAvailableException((Exception) cause)) {
+            return true;
+        }
+
+        if (ex instanceof ConnectException) {
+            // Thrown to signal that an error occurred while attempting to connect a socket to a remote address and port.
+            // Typically, the connection was refused remotely (e.g., no process is listening on the remote address/port)
+            return true;
+        }
+        if (ex instanceof SocketException) {
+            // Thrown to indicate that there is an error creating or accessing a Socket.
+            return true;
+        }
+        if(ex instanceof SocketTimeoutException){
+            // Signals that a timeout has occurred on a socket read or accept.
+            return  true;
+        }
+        if(ex instanceof UnknownHostException){
+            // There is a possibility of IP address of host could not be determined because of some network issue.
+            // This can be treated as transient
+            return true;
+        }
+        if(ex instanceof HttpRetryException){
+            // Thrown to indicate that a HTTP request needs to be retried but cannot be retried automatically, due to streaming
+            // mode being enabled.
+            return true;
+        }
+        if(ex instanceof ConnectTimeoutException){
+            // ConnectionPoolTimeoutException < ConnectTimeoutException
+            return true;
+        }
+        return false;
     }
 }
