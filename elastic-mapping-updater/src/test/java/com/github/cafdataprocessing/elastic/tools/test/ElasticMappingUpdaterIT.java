@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 import com.github.cafdataprocessing.elastic.tools.ElasticMappingUpdater;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.RefreshIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
@@ -138,7 +139,7 @@ public final class ElasticMappingUpdaterIT
         }
 
         LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating indexes matching template {}", templateName);
-        updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName);
+        updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName, false);
 
         // Verify index mapping has new properties
         final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
@@ -230,7 +231,7 @@ public final class ElasticMappingUpdaterIT
 
         LOGGER.info("testUpdateUnsupportedChanges - Updating indexes matching template {}", templateName);
         // No changes to Index mapping
-        updateIndex("testUpdateUnsupportedChanges", templateName);
+        updateIndex("testUpdateUnsupportedChanges", templateName, false);
 
         // Verify index mapping has not changed
         final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
@@ -298,7 +299,7 @@ public final class ElasticMappingUpdaterIT
         }
 
         LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating indexes matching template {}", templateName);
-        updateIndex("testUpdateDynamicTemplateOverwrite", templateName);
+        updateIndex("testUpdateDynamicTemplateOverwrite", templateName, false);
 
         // Verify updated index mapping has only one dynamic_template from the new index template
         final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
@@ -338,12 +339,131 @@ public final class ElasticMappingUpdaterIT
         verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 2);
     }
 
-    private void updateIndex(final String testName, final String templateName)
+    @Test
+    public void testUpdateUnsupportedChangesWithReindex() throws IOException, GetIndexException, InterruptedException
     {
-        LOGGER.info("{}: {}", testName, templateName);
+        LOGGER.info("Running test 'testUpdateUnsupportedChangesWithReindex'...");
+        final String templateName = "acmeprime-sample-template";
+        final String origTemplateSourceFile = "/template7.json";
+        // This template has modified "type" param for IS_HEAD_OF_FAMILY and FAILURES/AJP_JOB_RUN_ID
+        final String unsupportedTemplateSourceFile = "/template8.json";
+        final String indexName = "test_acmeprime-000001";
+        final String indexNameSearch = "test_acmeprime-*";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testUpdateUnsupportedChangesWithReindex - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if (!putTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+        LOGGER.info("testUpdateUnsupportedChangesWithReindex - Creating index matching template {}", templateName);
+        // Create an index with some data
+        IndexRequest request = new IndexRequest(indexName);
+        request.id("1");
+        request.routing("1");
+        String jsonString = "{"
+            + "'TITLE':'doc1',"
+            + "'DATE_PROCESSED\":'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person1' },"
+            + "'LANGUAGE_CODES': [{"
+            + "      'CODE': 'en',"
+            + "      'CONFIDENCE': 80"
+            + "    },"
+            + "    {"
+            + "      'CODE': 'ko',"
+            + "      'CONFIDENCE': 14"
+            + "    },"
+            + "    {"
+            + "      'CODE': 'ja',"
+            + "      'CONFIDENCE': 6"
+            + "    }"
+            + "  ]"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        boolean needsRetries = indexDocumentWithRetry(request);
+        if(needsRetries)
+        {
+            // Indexing has failed after multiple retries
+            fail();
+        }
+
+        request = new IndexRequest(indexName);
+        request.id("2");
+        request.routing("1");
+        jsonString = "{"
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED\":'2020-02-11',"
+            + "'CONTENT_PRIMARY':'some test',"
+            + "'IS_HEAD_OF_FAMILY':false,"
+            + "'PERSON':{ 'NAME':'person2' },"
+            + "'LANGUAGE_CODES': [{"
+            + "      'CODE': 'en',"
+            + "      'CONFIDENCE': 30"
+            + "    },"
+            + "    {"
+            + "      'CODE': 'de',"
+            + "      'CONFIDENCE': 70"
+            + "    }"
+            + "  ]"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+        needsRetries = indexDocumentWithRetry(request);
+        if(needsRetries)
+        {
+            // Indexing has failed after multiple retries
+            fail();
+        }
+
+        verifyIndexData(indexNameSearch, QueryBuilders.matchAllQuery(), 2);
+
+        LOGGER.info("testUpdateUnsupportedChangesWithReindex - Updating template {}", templateName);
+        final String updatedTemplateSource = readFile(unsupportedTemplateSourceFile);
+        // Create a template
+        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
+        utrequest.source(updatedTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
+        if (!updateTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+
+        LOGGER.info("testUpdateUnsupportedChangesWithReindex - Updating indexes matching template {}", templateName);
+        // Re index
+        updateIndex("testUpdateUnsupportedChangesWithReindex", templateName, true);
+
+        // Verify new index mapping
+        final Map<String, Object> indexTypeMappings = getIndexMapping(getNewIndexName(indexName));
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> propMapping = (Map<String, Object>) props.get("IS_HEAD_OF_FAMILY");
+        final String propValue = (String) propMapping.get("type");
+        // Verify property mapping value is changed from boolean to long
+        assertTrue("testUpdateUnsupportedChangesWithReindex", propValue.equals("long"));
+
+        verifyIndexData(indexNameSearch, QueryBuilders.matchAllQuery(), 2);
+
+        verifyIndexData(indexNameSearch, QueryBuilders.termQuery("LANGUAGE_CODES.CODE_CONFIDENCE_AGGREGATE", "en 30"), 1);
+
+    }
+
+    private void updateIndex(final String testName, final String templateName, final boolean reIndex)
+    {
+        LOGGER.info("{}: {} : reindex? {}", testName, templateName, reIndex);
         try {
-            ElasticMappingUpdater.update(false, host, protocol, port, connectTimeout, socketTimeout);
-        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException | GetIndexException | GetTemplateException e) {
+            ElasticMappingUpdater.update(false, reIndex, host, protocol, port, connectTimeout, socketTimeout);
+        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException
+                | GetIndexException | GetTemplateException | RefreshIndexException e) {
             LOGGER.error(testName, e);
             fail(testName + ":" + e);
         }
@@ -394,6 +514,7 @@ public final class ElasticMappingUpdaterIT
             final Map<String, Object> sourceAsMap = hit.getSourceAsMap();
             LOGGER.info("hit : {}", sourceAsMap);
         }
+
     }
 
     private Map<String, Object> getIndexMapping(final String indexName) throws IOException, GetIndexException
@@ -481,5 +602,14 @@ public final class ElasticMappingUpdaterIT
             return true;
         }
         return false;
+    }
+
+    private String getNewIndexName(final String indexName)
+    {
+        final int insertSuffixPosition = indexName.lastIndexOf("-");
+        final String newIndexName = indexName.substring(0, insertSuffixPosition)
+                                    + "-v3_3"
+                                    + indexName.substring(insertSuffixPosition);
+        return newIndexName;
     }
 }

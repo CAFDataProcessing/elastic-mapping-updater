@@ -18,6 +18,9 @@ package com.github.cafdataprocessing.elastic.tools;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,9 +32,11 @@ import org.apache.http.util.EntityUtils;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.GetIndexTemplatesResponse;
 import org.elasticsearch.client.indices.IndexTemplateMetaData;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -41,8 +46,10 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.cafdataprocessing.elastic.tools.exceptions.CreateIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.RefreshIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
@@ -148,6 +155,28 @@ final class ElasticRequestHandler
         }
     }
 
+    CreateIndexResponse createIndex(final String indexName, final Map<String, Object> createIndexRequest)
+            throws IOException, CreateIndexException
+    {
+        LOGGER.debug("Creating index {}...", indexName);
+        final String mappingSource = objectMapper.writeValueAsString(createIndexRequest);
+        final Request request = new Request("PUT", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
+        request.setJsonEntity(mappingSource);
+        final Response response = elasticClient.performRequest(request);
+
+        final int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode == 200) {
+            try (final InputStream resultJsonStream = response.getEntity().getContent();
+                 final XContentParser parser
+                 = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
+                return CreateIndexResponse.fromXContent(parser);
+            }
+        } else {
+            throw new CreateIndexException(String.format("Error creating index '%s'. Status code: %s, response: %s",
+                                                      indexName, statusCode, EntityUtils.toString(response.getEntity())));
+        }
+    }
+
     boolean updateIndexMapping(final String indexName, final Map<String, Object> mappings)
         throws IOException, UnexpectedResponseException
     {
@@ -191,6 +220,126 @@ final class ElasticRequestHandler
         }
     }
 
+    boolean reIndex(final String source, final String destination) throws IOException, UnexpectedResponseException
+    {
+        LOGGER.debug("Reindexing from {} to {}...", source, destination);
+
+        final Map<String, Object> reIndexRequest = new HashMap<>();
+        reIndexRequest.put("source", Collections.singletonMap("index", source));
+        reIndexRequest.put("dest", Collections.singletonMap("index", destination));
+
+        final String reIndexRequestPayload = objectMapper.writeValueAsString(reIndexRequest);
+
+        final Request request = new Request("POST", "/_reindex");
+        request.setJsonEntity(reIndexRequestPayload);
+
+        final Response response = elasticClient.performRequest(request);
+
+        // Get the response entity
+        final HttpEntity responseEntity = response.getEntity();
+
+        // Get the Content-Type header
+        final ContentType contentType = ContentType.get(responseEntity);
+        if (contentType == null) {
+            throw new UnexpectedResponseException("Failed to get the content type from the response entity");
+        }
+
+        // Check that the response is JSON
+        if (!ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
+            throw new UnexpectedResponseException("JSON response expected but response type was " + contentType.getMimeType());
+        }
+
+        // Parse the response
+        final JsonNode responseNode = StandardCharsets.UTF_8.equals(contentType.getCharset())
+            ? objectMapper.readTree(responseEntity.getContent())
+            : objectMapper.readTree(EntityUtils.toString(responseEntity));
+
+        // Check that it is not null
+        if (responseNode == null) {
+            throw new UnexpectedResponseException("JSON response deserialized to null");
+        }
+
+        final int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode == 200) {
+            return true;
+        } else {
+            LOGGER.error("Reindex status : {}", statusCode);
+            return false;
+        }
+    }
+
+    boolean updateAlias(final String indexName, final String newIndexName, final Map<String, List<AliasMetaData>> aliases)
+            throws IOException, UnexpectedResponseException
+    {
+        LOGGER.debug("Updating aliases from {} to {}...", indexName, newIndexName);
+
+        final Map<String, Object> addAliasAction = new HashMap<>();
+        addAliasAction.put("index", newIndexName);
+        addAliasAction.put("alias", indexName);
+
+        final List<Map<String, Object>> actions = new ArrayList<>();
+        actions.add(Collections.singletonMap("add", addAliasAction));
+        actions.add(Collections.singletonMap("remove_index", Collections.singletonMap("index", indexName)));
+
+        final Map<String, Object> aliasRequest = new HashMap<>();
+        aliasRequest.put("actions", actions);
+
+        final String aliasRequestPayload = objectMapper.writeValueAsString(aliasRequest);
+
+        final Request request = new Request("POST", "/_aliases");
+        request.setJsonEntity(aliasRequestPayload);
+
+        final Response response = elasticClient.performRequest(request);
+
+        // Get the response entity
+        final HttpEntity responseEntity = response.getEntity();
+
+        // Get the Content-Type header
+        final ContentType contentType = ContentType.get(responseEntity);
+        if (contentType == null) {
+            throw new UnexpectedResponseException("Failed to get the content type from the response entity");
+        }
+
+        // Check that the response is JSON
+        if (!ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
+            throw new UnexpectedResponseException("JSON response expected but response type was " + contentType.getMimeType());
+        }
+
+        // Parse the response
+        final JsonNode responseNode = StandardCharsets.UTF_8.equals(contentType.getCharset())
+            ? objectMapper.readTree(responseEntity.getContent())
+            : objectMapper.readTree(EntityUtils.toString(responseEntity));
+
+        // Check that it is not null
+        if (responseNode == null) {
+            throw new UnexpectedResponseException("JSON response deserialized to null");
+        }
+
+        final int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode == 200) {
+            return true;
+        } else {
+            LOGGER.error("Update alias status : {}", statusCode);
+            return false;
+        }
+    }
+
+    boolean refreshIndex(final String indexName) throws IOException, RefreshIndexException
+    {
+        LOGGER.debug("Refreshing index {}...", indexName);
+        final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName) + "/_refresh");
+
+        final Response response = elasticClient.performRequest(request);
+
+        final int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode == 200) {
+            return true;
+        } else {
+            throw new RefreshIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
+                                                      indexName, statusCode, EntityUtils.toString(response.getEntity())));
+        }
+    }
+
     private JsonNode performRequest(final Request request) throws UnexpectedResponseException, IOException
     {
         final Response response = elasticClient.performRequest(request);
@@ -221,4 +370,5 @@ final class ElasticRequestHandler
 
         return responseNode;
     }
+
 }

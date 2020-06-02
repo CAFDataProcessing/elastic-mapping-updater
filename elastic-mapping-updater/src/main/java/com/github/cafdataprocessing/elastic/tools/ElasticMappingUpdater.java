@@ -24,8 +24,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.IndexTemplateMetaData;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +36,10 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.cafdataprocessing.elastic.tools.exceptions.CreateIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.RefreshIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnsupportedMappingChangesException;
@@ -54,11 +58,13 @@ public final class ElasticMappingUpdater
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
     private final boolean dryRun;
+    private final boolean reindex;
 
     /**
      * Updates the mapping of indexes matching any templates on the Elasticsearch instances.
      *
      * @param dryRun If true, the tool lists the mapping changes to the indexes but does not apply them
+     * @param reindex If true, the tool reindexes data from the indexes that have unsupported mapping changes
      * @param esHostNames Comma separated list of Elasticsearch hostnames
      * @param esProtocol The protocol to connect with Elasticsearch server
      * @param esRestPort Elasticsearch REST API port
@@ -69,26 +75,33 @@ public final class ElasticMappingUpdater
      * @throws GetIndexException thrown if there is an error getting an index
      * @throws GetTemplateException thrown if there is an error getting a template
      * @throws UnexpectedResponseException thrown if the elasticsearch response cannot be parsed
+     * @throws RefreshIndexException thrown if the new index could not be refreshed
      */
     public static void update(
         final boolean dryRun,
+        final boolean reindex,
         final String esHostNames,
         final String esProtocol,
         final int esRestPort,
         final int esConnectTimeout,
         final int esSocketTimeout
-    ) throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+    ) throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException,
+      RefreshIndexException
     {
         final ElasticMappingUpdater updater
-            = new ElasticMappingUpdater(dryRun, esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
+            = new ElasticMappingUpdater(dryRun, reindex, esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
         LOGGER.info("Updating indexes on '{}'. {}", esHostNames,
                 dryRun ? "This is a dry run. No indexes will actually be updated."
                        : "Indexes with no mapping conflicts will be updated.");
+        LOGGER.info("Indexes with unsupported mapping changes {}",
+                (!dryRun && reindex) ? " will be reindexed."
+                       : " will not be reindexed.");
         updater.updateIndexes();
     }
 
     private ElasticMappingUpdater(
         final boolean dryRun,
+        final boolean reindex,
         final String esHostNames,
         final String esProtocol,
         final int esRestPort,
@@ -96,6 +109,7 @@ public final class ElasticMappingUpdater
         final int esSocketTimeout)
     {
         this.dryRun = dryRun;
+        this.reindex = reindex;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
         final ElasticSettings elasticSettings
@@ -107,7 +121,8 @@ public final class ElasticMappingUpdater
     }
 
     private void updateIndexes()
-        throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+        throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException,
+        RefreshIndexException
     {
         final List<String> templateNames = elasticRequestHandler.getTemplateNames();
         LOGGER.info("Templates found in Elasticsearch: {}", templateNames);
@@ -117,7 +132,8 @@ public final class ElasticMappingUpdater
     }
 
     private void updateIndexesForTemplate(final String templateName)
-        throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+        throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException,
+        UnexpectedResponseException, RefreshIndexException
     {
         LOGGER.info("---- Analyzing indexes matching template '{}' ----", templateName);
 
@@ -201,6 +217,7 @@ public final class ElasticMappingUpdater
                 }
             } catch (final UnsupportedMappingChangesException e) {
                 LOGGER.warn("Index cannot be updated due to unsupported mapping changes.");
+                reIndex(indexName, template, getIndexResponse);
             }
         }
         LOGGER.info("---- Analysis of indexes matching template '{}' completed ----", templateName);
@@ -267,4 +284,71 @@ public final class ElasticMappingUpdater
         return dynamicTemplatesInTemplate.retainAll(dynamicTemplatesInIndex);
     }
 
+    private void reIndex(final String indexName, final IndexTemplateMetaData template, final GetIndexResponse getIndexResponse)
+            throws IOException, UnexpectedResponseException, RefreshIndexException
+    {
+        final Map<String, Object> createIndexRequest = new HashMap<>();
+        createIndexRequest.put("mappings", template.mappings().sourceAsMap());
+        createIndexRequest.put("settings", objectMapper.readValue(template.settings().toString(), Map.class));
+        final Map<String, AliasMetaData> aliases = new HashMap<>();
+        template.aliases().keysIt().forEachRemaining(k -> aliases.put(k, template.aliases().get(k)));
+        createIndexRequest.put("aliases", aliases);
+        // TODO: Set the refresh_interval to -1 and the number_of_replicas to 0 for efficient reindexing.
+        LOGGER.info("New index request payload : {}", createIndexRequest);
+        if(!dryRun && reindex)
+        {
+            LOGGER.info("Reindexing {}...", indexName);
+            LOGGER.info("Creating a new index from template {}...", template.name());
+
+            final String newIndexName = getNewIndexName(indexName);
+            try
+            {
+                final CreateIndexResponse idxResponse = elasticRequestHandler.createIndex(newIndexName, createIndexRequest);
+                if(!idxResponse.isAcknowledged())
+                {
+                    LOGGER.warn("Error creating new index {}", newIndexName);
+                    return;
+                }
+                LOGGER.info("Reindexing all documents from the old index {} into the new index {} using the reindex API...",
+                        indexName, newIndexName);
+                final boolean reIndexStatus = elasticRequestHandler.reIndex(indexName, newIndexName);
+                if(reIndexStatus)
+                {
+                    LOGGER.info("Resetting the refresh_interval and number_of_replicas to the values used in the old index...");
+                    // TODO:
+                    LOGGER.info("Waiting for the index status to change to green...");
+                    // TODO:
+                    LOGGER.info("Updating aliases "
+                            + "1. Deleting the old index {}, "
+                            + "2. Adding an alias with the old index name to the new index {},"
+                            + "3. Adding any aliases that existed on the old index to the new index.",
+                            indexName, newIndexName);
+                    final boolean updateAliasStatus = elasticRequestHandler.updateAlias(
+                            indexName, newIndexName, getIndexResponse.getAliases());
+                    LOGGER.info("Old index {} {} ", indexName,
+                            updateAliasStatus
+                            ? "is deleted and aliases are updated."
+                            : "is not deleted and aliases are not updated");
+                    LOGGER.info("Refreshing new index...");
+                    elasticRequestHandler.refreshIndex(newIndexName);
+                }
+                else
+                {
+                    LOGGER.info("Unable to reindex from {} to {}", indexName, newIndexName);
+                }
+            } catch (final CreateIndexException e)
+            {
+                LOGGER.warn("Error creating new index {}", newIndexName, e);
+            }
+        }
+    }
+
+    private String getNewIndexName(final String indexName)
+    {
+        final int insertSuffixPosition = indexName.lastIndexOf("-");
+        final String newIndexName = indexName.substring(0, insertSuffixPosition)
+                                    + "-v3_3"
+                                    + indexName.substring(insertSuffixPosition);
+        return newIndexName;
+    }
 }

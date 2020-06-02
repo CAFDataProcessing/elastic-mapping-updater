@@ -23,6 +23,7 @@ It makes the following `static` method available in the `ElasticMappingUpdater` 
 ```java
 public static void update(
             final boolean dryRun,
+            final boolean reIndex,
             final String esProtocol,
             final String esHostNames,
             final int esRestPort,
@@ -40,6 +41,8 @@ This module provides a simple command-line interface which wraps the `ElasticMap
                                [-t=<esSocketTimeout>]
         -d, --dryRun   If true, the tool lists the mapping changes to the indexes but
                        does not apply them. Defaults to false.
+        -i, --reIndex   If true, the tool reindexes data from the indexes that have unsupported mapping changes.
+                       Defaults to false.
         -n, --esHostNames=<esHostNames>
                      Comma separated list of Elasticsearch hostnames
         -p, --esProtocol=<esProtocol>
