@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.IndexTemplateMetaData;
@@ -109,19 +110,20 @@ public final class ElasticMappingUpdater
     private void updateIndexes()
         throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
-        final List<String> templateNames = elasticRequestHandler.getTemplateNames();
-        LOGGER.info("Templates found in Elasticsearch: {}", templateNames);
-        for (final String templateName : templateNames) {
-            updateIndexesForTemplate(templateName);
+        final List<IndexTemplateMetaData> templates = elasticRequestHandler.getTemplates();
+        LOGGER.info("Templates found in Elasticsearch: {}",
+                templates.stream().map(template -> template.name()).collect(Collectors.toList()));
+        for (final IndexTemplateMetaData template : templates) {
+            updateIndexesForTemplate(template);
         }
     }
 
-    private void updateIndexesForTemplate(final String templateName)
+    private void updateIndexesForTemplate(final IndexTemplateMetaData template)
         throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
     {
+        final String templateName = template.name();
         LOGGER.info("---- Analyzing indexes matching template '{}' ----", templateName);
 
-        final IndexTemplateMetaData template = elasticRequestHandler.getTemplate(templateName);
         final List<String> patterns = template.patterns();
 
         final MappingMetaData mapping = template.mappings();

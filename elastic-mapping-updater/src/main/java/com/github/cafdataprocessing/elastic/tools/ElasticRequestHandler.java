@@ -18,6 +18,7 @@ package com.github.cafdataprocessing.elastic.tools;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -59,74 +60,45 @@ final class ElasticRequestHandler
         this.elasticClient = ElasticProvider.getClient(schemaUpdaterConfig.getElasticSettings());
     }
 
-    List<String> getTemplateNames() throws UnexpectedResponseException, IOException
-    {
-        LOGGER.debug("Getting template names...");
+    List<IndexTemplateMetaData> getTemplates()
+            throws IOException, TemplateNotFoundException, GetTemplateException
+        {
+        LOGGER.debug("Getting templates...");
+            final Request request = new Request("GET", "/_template");
+            final Response response = elasticClient.performRequest(request);
 
-        final Request request = new Request("GET", "/_cat/templates?h=name&s=name&format=json");
-
-        final JsonNode responseNode = performRequest(request);
-
-        if (!responseNode.isArray()) {
-            throw new UnexpectedResponseException(
-                "Get Templates Request Response: response node is present but is unexpectedly not an array");
-        } else {
-            return StreamSupport.stream(responseNode.spliterator(), false)
-                .map(n -> n.get("name"))
-                .map(JsonNode::asText)
-                .collect(Collectors.toList());
-        }
-    }
-
-    IndexTemplateMetaData getTemplate(final String templateName)
-        throws IOException, TemplateNotFoundException, GetTemplateException
-    {
-        LOGGER.debug("Getting template {}...", templateName);
-        final Request request = new Request("GET", "/_template/" + UrlEscapers.urlPathSegmentEscaper().escape(templateName));
-        final Response response = elasticClient.performRequest(request);
-
-        final int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode == 200) {
-            try (final InputStream resultJsonStream = response.getEntity().getContent();
-                 final XContentParser parser
-                 = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
-                final GetIndexTemplatesResponse getTemplatesResponse = GetIndexTemplatesResponse.fromXContent(parser);
-                final List<IndexTemplateMetaData> templates = getTemplatesResponse.getIndexTemplates();
-                if (templates != null && templates.size() > 0) {
-                    if (templates.size() > 1) {
-                        throw new GetTemplateException("Found multiple templates with name : " + templateName);
-                    }
-                    return templates.get(0);
-                } else {
-                    throw new TemplateNotFoundException(templateName + " not found");
+            final int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == 200) {
+                try (final InputStream resultJsonStream = response.getEntity().getContent();
+                     final XContentParser parser
+                     = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
+                    final GetIndexTemplatesResponse getTemplatesResponse = GetIndexTemplatesResponse.fromXContent(parser);
+                    final List<IndexTemplateMetaData> templates = getTemplatesResponse.getIndexTemplates();
+                    return templates;
                 }
+            } else {
+                throw new GetTemplateException(String.format("Error getting templates. Status code: %s, response: %s",
+                                                             statusCode, EntityUtils.toString(response.getEntity())));
             }
-        } else {
-            throw new GetTemplateException(String.format("Error getting template '%s'. Status code: %s, response: %s",
-                                                         templateName, statusCode, EntityUtils.toString(response.getEntity())));
         }
-    }
 
     List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException
     {
         LOGGER.debug("Getting index names matching pattern(s) : {}...", indexNamePatterns);
-        final String filter = (indexNamePatterns != null && !indexNamePatterns.isEmpty())
-            ? "/" + String.join(",", indexNamePatterns)
-            : "";
-        final Request request = new Request("GET", "/_cat/indices"
-                                            + filter
-                                            + "?h=index&=index&format=json");
+        if(indexNamePatterns == null || indexNamePatterns.isEmpty())
+        {
+            return Collections.emptyList();
+        }
+        final String filter = "/" + String.join(",", indexNamePatterns);
+        final Request request = new Request("GET", filter);
 
         final JsonNode responseNode = performRequest(request);
 
-        if (!responseNode.isArray()) {
-            throw new UnexpectedResponseException("Index Request Response: response node is present but is unexpectedly not an array");
-        } else {
-            return StreamSupport.stream(responseNode.spliterator(), false)
-                .map(n -> n.get("index"))
-                .map(JsonNode::asText)
+        final Iterable<String> fieldNames = () -> responseNode.fieldNames();
+
+        return StreamSupport.stream(fieldNames.spliterator(), false)
+                .sorted()
                 .collect(Collectors.toList());
-        }
     }
 
     public GetIndexResponse getIndex(final String indexName) throws IOException, GetIndexException
