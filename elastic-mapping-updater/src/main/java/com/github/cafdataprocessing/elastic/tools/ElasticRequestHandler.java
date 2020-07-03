@@ -64,23 +64,23 @@ final class ElasticRequestHandler
             throws IOException, TemplateNotFoundException, GetTemplateException
         {
         LOGGER.debug("Getting templates...");
-            final Request request = new Request("GET", "/_template");
-            final Response response = elasticClient.performRequest(request);
+        final Request request = new Request("GET", "/_template");
+        final Response response = elasticClient.performRequest(request);
 
-            final int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode == 200) {
-                try (final InputStream resultJsonStream = response.getEntity().getContent();
-                     final XContentParser parser
-                     = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
-                    final GetIndexTemplatesResponse getTemplatesResponse = GetIndexTemplatesResponse.fromXContent(parser);
-                    final List<IndexTemplateMetaData> templates = getTemplatesResponse.getIndexTemplates();
-                    return templates;
-                }
-            } else {
-                throw new GetTemplateException(String.format("Error getting templates. Status code: %s, response: %s",
-                                                             statusCode, EntityUtils.toString(response.getEntity())));
+        final int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode == 200) {
+            try (final InputStream resultJsonStream = response.getEntity().getContent();
+                 final XContentParser parser
+                 = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
+                final GetIndexTemplatesResponse getTemplatesResponse = GetIndexTemplatesResponse.fromXContent(parser);
+                final List<IndexTemplateMetaData> templates = getTemplatesResponse.getIndexTemplates();
+                return templates;
             }
+        } else {
+            throw new GetTemplateException(String.format("Error getting templates. Status code: %s, response: %s",
+                                                         statusCode, EntityUtils.toString(response.getEntity())));
         }
+    }
 
     List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException
     {
