@@ -15,11 +15,11 @@
  */
 package com.github.cafdataprocessing.elastic.tools.exceptions;
 
-public final class TemplateNotFoundException extends Exception
+public final class GetTemplatesException extends Exception
 {
-    private static final long serialVersionUID = -1519913850609140958L;
+    private static final long serialVersionUID = -2290300355432435553L;
 
-    public TemplateNotFoundException(final String message)
+    public GetTemplatesException(final String message)
     {
         super(message);
     }

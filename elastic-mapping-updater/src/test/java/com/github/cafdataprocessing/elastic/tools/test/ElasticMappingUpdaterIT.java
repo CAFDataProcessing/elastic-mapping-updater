@@ -57,8 +57,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.cafdataprocessing.elastic.tools.ElasticMappingUpdater;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
-import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
-import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplatesException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
 import java.net.ConnectException;
@@ -343,7 +342,7 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("{}: {}", testName, templateName);
         try {
             ElasticMappingUpdater.update(false, host, protocol, port, connectTimeout, socketTimeout);
-        } catch (final IOException | UnexpectedResponseException | TemplateNotFoundException | GetIndexException | GetTemplateException e) {
+        } catch (final IOException | UnexpectedResponseException | GetIndexException | GetTemplatesException e) {
             LOGGER.error(testName, e);
             fail(testName + ":" + e);
         }
