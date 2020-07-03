@@ -60,8 +60,8 @@ final class ElasticRequestHandler
     }
 
     List<IndexTemplateMetaData> getTemplates()
-            throws IOException, GetTemplatesException
-        {
+        throws IOException, GetTemplatesException
+    {
         LOGGER.debug("Getting templates...");
         final Request request = new Request("GET", "/_template");
         final Response response = elasticClient.performRequest(request);
@@ -77,15 +77,14 @@ final class ElasticRequestHandler
             }
         } else {
             throw new GetTemplatesException(String.format("Error getting templates. Status code: %s, response: %s",
-                                                         statusCode, EntityUtils.toString(response.getEntity())));
+                                                          statusCode, EntityUtils.toString(response.getEntity())));
         }
     }
 
     List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException
     {
         LOGGER.debug("Getting index names matching pattern(s) : {}...", indexNamePatterns);
-        if(indexNamePatterns == null || indexNamePatterns.isEmpty())
-        {
+        if (indexNamePatterns == null || indexNamePatterns.isEmpty()) {
             return Collections.emptyList();
         }
         final String filter = "/" + String.join(",", indexNamePatterns);
@@ -96,8 +95,8 @@ final class ElasticRequestHandler
         final Iterable<String> fieldNames = () -> responseNode.fieldNames();
 
         return StreamSupport.stream(fieldNames.spliterator(), false)
-                .sorted()
-                .collect(Collectors.toList());
+            .sorted()
+            .collect(Collectors.toList());
     }
 
     public GetIndexResponse getIndex(final String indexName) throws IOException, GetIndexException

@@ -31,12 +31,12 @@ public final class Program implements Callable<Void>
     private static final Logger LOGGER = LoggerFactory.getLogger(Program.class);
 
     @Option(
-            names = {"-d", "--dryRun"},
-            paramLabel = "<dryRun>",
-            defaultValue = "false",
-            description = "If true, the tool lists the mapping changes to the indexes but does not apply them. Defaults to false."
-        )
-        private boolean dryRun;
+        names = {"-d", "--dryRun"},
+        paramLabel = "<dryRun>",
+        defaultValue = "false",
+        description = "If true, the tool lists the mapping changes to the indexes but does not apply them. Defaults to false."
+    )
+    private boolean dryRun;
 
     @Option(
         names = {"-n", "--esHostNames"},

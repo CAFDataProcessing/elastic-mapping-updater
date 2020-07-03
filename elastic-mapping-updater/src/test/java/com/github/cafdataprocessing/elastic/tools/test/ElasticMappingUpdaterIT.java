@@ -118,8 +118,7 @@ public final class ElasticMappingUpdaterIT
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
         final boolean needsRetries = indexDocumentWithRetry(request);
-        if(needsRetries)
-        {
+        if (needsRetries) {
             // Indexing has failed after multiple retries
             fail();
         }
@@ -209,8 +208,7 @@ public final class ElasticMappingUpdaterIT
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
         final boolean needsRetries = indexDocumentWithRetry(request);
-        if(needsRetries)
-        {
+        if (needsRetries) {
             // Indexing has failed after multiple retries
             fail();
         }
@@ -279,8 +277,7 @@ public final class ElasticMappingUpdaterIT
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
         boolean needsRetries = indexDocumentWithRetry(request);
-        if(needsRetries)
-        {
+        if (needsRetries) {
             // Indexing has failed after multiple retries
             fail();
         }
@@ -328,8 +325,7 @@ public final class ElasticMappingUpdaterIT
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
         needsRetries = indexDocumentWithRetry(request);
-        if(needsRetries)
-        {
+        if (needsRetries) {
             // Indexing has failed after multiple retries
             fail();
         }
@@ -433,12 +429,10 @@ public final class ElasticMappingUpdaterIT
 
     private boolean indexDocument(final IndexRequest request)
     {
-        try{
+        try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        }
-        catch(final IOException ex)
-        {
+        } catch (final IOException ex) {
             return isServiceUnAvailableException(ex);
         }
         return false;
@@ -461,21 +455,21 @@ public final class ElasticMappingUpdaterIT
             // Thrown to indicate that there is an error creating or accessing a Socket.
             return true;
         }
-        if(ex instanceof SocketTimeoutException){
+        if (ex instanceof SocketTimeoutException) {
             // Signals that a timeout has occurred on a socket read or accept.
-            return  true;
+            return true;
         }
-        if(ex instanceof UnknownHostException){
+        if (ex instanceof UnknownHostException) {
             // There is a possibility of IP address of host could not be determined because of some network issue.
             // This can be treated as transient
             return true;
         }
-        if(ex instanceof HttpRetryException){
+        if (ex instanceof HttpRetryException) {
             // Thrown to indicate that a HTTP request needs to be retried but cannot be retried automatically, due to streaming
             // mode being enabled.
             return true;
         }
-        if(ex instanceof ConnectTimeoutException){
+        if (ex instanceof ConnectTimeoutException) {
             // ConnectionPoolTimeoutException < ConnectTimeoutException
             return true;
         }
