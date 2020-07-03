@@ -36,8 +36,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
-import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
-import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplatesException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnsupportedMappingChangesException;
 import com.github.cafdataprocessing.elastic.tools.utils.FlatMapUtil;
@@ -66,9 +65,8 @@ public final class ElasticMappingUpdater
      * @param esConnectTimeout Timeout until a new connection is fully established
      * @param esSocketTimeout Time of inactivity to wait for packets[data] to be received
      * @throws IOException thrown if the elasticsearch request cannot be processed
-     * @throws TemplateNotFoundException thrown if the template cannot be found
      * @throws GetIndexException thrown if there is an error getting an index
-     * @throws GetTemplateException thrown if there is an error getting a template
+     * @throws GetTemplatesException thrown if there is an error getting templates
      * @throws UnexpectedResponseException thrown if the elasticsearch response cannot be parsed
      */
     public static void update(
@@ -78,7 +76,7 @@ public final class ElasticMappingUpdater
         final int esRestPort,
         final int esConnectTimeout,
         final int esSocketTimeout
-    ) throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+    ) throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
     {
         final ElasticMappingUpdater updater
             = new ElasticMappingUpdater(dryRun, esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
@@ -108,7 +106,7 @@ public final class ElasticMappingUpdater
     }
 
     private void updateIndexes()
-        throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+        throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
     {
         final List<IndexTemplateMetaData> templates = elasticRequestHandler.getTemplates();
         LOGGER.info("Templates found in Elasticsearch: {}",
@@ -119,7 +117,7 @@ public final class ElasticMappingUpdater
     }
 
     private void updateIndexesForTemplate(final IndexTemplateMetaData template)
-        throws IOException, TemplateNotFoundException, GetIndexException, GetTemplateException, UnexpectedResponseException
+        throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
     {
         final String templateName = template.name();
         LOGGER.info("---- Analyzing indexes matching template '{}' ----", templateName);

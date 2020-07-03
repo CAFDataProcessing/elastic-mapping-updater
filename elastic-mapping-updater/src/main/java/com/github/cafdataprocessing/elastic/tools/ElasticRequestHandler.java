@@ -43,8 +43,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
-import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplateException;
-import com.github.cafdataprocessing.elastic.tools.exceptions.TemplateNotFoundException;
+import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplatesException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
 
@@ -61,7 +60,7 @@ final class ElasticRequestHandler
     }
 
     List<IndexTemplateMetaData> getTemplates()
-            throws IOException, TemplateNotFoundException, GetTemplateException
+            throws IOException, GetTemplatesException
         {
         LOGGER.debug("Getting templates...");
         final Request request = new Request("GET", "/_template");
@@ -77,7 +76,7 @@ final class ElasticRequestHandler
                 return templates;
             }
         } else {
-            throw new GetTemplateException(String.format("Error getting templates. Status code: %s, response: %s",
+            throw new GetTemplatesException(String.format("Error getting templates. Status code: %s, response: %s",
                                                          statusCode, EntityUtils.toString(response.getEntity())));
         }
     }
