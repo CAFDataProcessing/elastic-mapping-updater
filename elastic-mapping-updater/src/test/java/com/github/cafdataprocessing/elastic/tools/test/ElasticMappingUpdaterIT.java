@@ -16,7 +16,6 @@
 package com.github.cafdataprocessing.elastic.tools.test;
 
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -435,8 +434,8 @@ public final class ElasticMappingUpdaterIT
         final Map<String, Object> idPropMapping = (Map<String, Object>) props.get("ID");
         LOGGER.info("idPropMapping {} ", idPropMapping);
         final Object idPropValue = idPropMapping.get("ignore_malformed");
-        // Verify property mapping value has changed
-        assertNull("testUpdateUnsupportedChanges", idPropValue);
+        // Verify property mapping parameter was not removed (although mapping update was to remove the ignore_malformed parameter)
+        assertNotNull("testUpdateUnsupportedChanges", idPropValue);
 
         // Verify index mapping of unsupported field changes has not changed
         @SuppressWarnings("unchecked")

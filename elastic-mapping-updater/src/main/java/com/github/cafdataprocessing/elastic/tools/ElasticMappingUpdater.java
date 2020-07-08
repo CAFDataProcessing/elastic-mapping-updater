@@ -51,6 +51,7 @@ public final class ElasticMappingUpdater
 
     private static final String MAPPING_PROPS_KEY = "properties";
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
+    private static final String MAPPING_TYPE_KEY = "type";
 
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
@@ -237,17 +238,35 @@ public final class ElasticMappingUpdater
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
         final Set<String> allowedFieldDifferences = new HashSet<>(entriesDiffering.keySet());
 
-        boolean unsupportedChanges = false;
+        boolean unsupportedObjectChanges = false;
         if (!entriesDiffering.isEmpty()) {
             LOGGER.info("--Differences between template and index mapping--");
             entriesDiffering.forEach((key, value) -> LOGGER.info("  {} - current: {} target: {}",
                                                                  key, value.rightValue(), value.leftValue()));
+
             // Check if 'type' has changed for object/nested properties
             final Map<String, ValueDifference<Object>> typeDifferences = entriesDiffering.entrySet().stream()
-                            .filter(e -> ((Map<?, ?>)(e.getValue().leftValue())).containsKey("properties") &&
-                                    (((Map<?, ?>)(e.getValue().leftValue())).containsKey("type")
-                                        || ((Map<?, ?>)(e.getValue().rightValue())).containsKey("type")))
+                            .filter(e -> ((Map<?, ?>)(e.getValue().leftValue())).containsKey(MAPPING_PROPS_KEY) &&
+                                    (((Map<?, ?>)(e.getValue().leftValue())).containsKey(MAPPING_TYPE_KEY)
+                                        || ((Map<?, ?>)(e.getValue().rightValue())).containsKey(MAPPING_TYPE_KEY)))
                             .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+
+            // Check if any fields have parameters being removed that may not be reflected in the index mapping update
+            final Map<String, ValueDifference<Object>> entriesBeingRemoved = entriesDiffering.entrySet().stream()
+                            .filter(e -> !typeDifferences.containsKey(e.getKey()))
+                            .filter(e -> ((Map<?, ?>)(e.getValue().rightValue())).size() > ((Map<?, ?>)(e.getValue().leftValue())).size())
+                            .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+            if(!entriesBeingRemoved.isEmpty())
+            {
+                entriesBeingRemoved.forEach(
+                        (key, value) ->
+                            LOGGER.warn(
+                                "Mapping changes with some parameters being removed may not be applied for : {} - current: {} target: {}",
+                                key, value.rightValue(), value.leftValue())
+                        );
+                unsupportedObjectChanges = true;
+            }
+
             if(!typeDifferences.isEmpty())
             {
                 typeDifferences.forEach(
@@ -255,12 +274,12 @@ public final class ElasticMappingUpdater
                             LOGGER.warn("Unsupported object/nested mapping change : {} - current: {} target: {}",
                                 key, value.rightValue(), value.leftValue());
                             allowedFieldDifferences.remove(key);
-                            });
-                unsupportedChanges = true;
+                        });
+                unsupportedObjectChanges = true;
             }
         }
 
-        if (!isMappingChangeSafe(templateMapping, indexMapping, allowedFieldDifferences) || unsupportedChanges) {
+        if (!isMappingChangeSafe(templateMapping, indexMapping, allowedFieldDifferences) || unsupportedObjectChanges) {
             LOGGER.warn("Unsupported mapping changes will not be applied to the index.");
         }
 
