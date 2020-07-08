@@ -163,6 +163,19 @@
             "DATE_PROCESSED": {
                 "type": "date",
                 "format": "strict_date_optional_time||epoch_second"
+            },
+            "LANGUAGE_CODES": {
+                "properties": {
+                    "CODE": {
+                        "ignore_above": 10922,
+                        "store": true,
+                        "type": "keyword"
+                    },
+                    "CONFIDENCE": {
+                        "store": true,
+                        "type": "double"
+                    }
+                }
             }
         }
     },

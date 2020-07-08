@@ -16,6 +16,7 @@
 package com.github.cafdataprocessing.elastic.tools.test;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -226,10 +227,10 @@ public final class ElasticMappingUpdaterIT
         }
 
         LOGGER.info("testUpdateUnsupportedChanges - Updating indexes matching template {}", templateName);
-        // No changes to Index mapping
+        // Unsupported mapping changes not applied to Index mapping
         updateIndex("testUpdateUnsupportedChanges", templateName);
 
-        // Verify index mapping has not changed
+        // Verify index mapping of unsupported field changes has not changed
         final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
         @SuppressWarnings("unchecked")
         final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
@@ -238,6 +239,14 @@ public final class ElasticMappingUpdaterIT
         final String propValue = (String) propMapping.get("type");
         // Verify property mapping value is same as before
         assertTrue("testUpdateUnsupportedChanges", propValue.equals("boolean"));
+
+        // Verify index mapping of allowed field changes has been updated
+        @SuppressWarnings("unchecked")
+        final Map<String, Map<String, Object>> personPropMapping = (Map<String, Map<String, Object>>) props.get("PERSON");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> agePropMapping = (Map<String, Object>) personPropMapping.get("properties").get("AGE");
+        final String ageTypeValue = (String) agePropMapping.get("type");
+        assertTrue("testUpdateUnsupportedChanges", ageTypeValue.equals("long"));
     }
 
     @Test
@@ -355,6 +364,112 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("testNoIndexesMatchingTemplate - Updating indexes matching template {}", templateName);
 
         updateIndex("testNoIndexesMatchingTemplate", templateName);
+    }
+
+    @Test
+    public void testUpdateIndexesOfUnSupportedChangesInTemplate() throws IOException, GetIndexException, InterruptedException
+    {
+        LOGGER.info("Running test 'testUpdateIndexesOfUnSupportedChangesInTemplate'...");
+        final String templateName = "sample-template";
+        final String origTemplateSourceFile = "/template8.json";
+        final String updatedTemplateSourceFile = "/template9.json";
+        final String indexName = "foo-com_lang-000001";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if (!putTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Creating index matching template {}", templateName);
+        // Create an index with some data
+        IndexRequest request = new IndexRequest(indexName);
+        request.id("1");
+        request.routing("1");
+        String jsonString = "{"
+                + "'TITLE':'doc1',"
+                + "'DATE_PROCESSED\":'2020-02-11',"
+                + "'CONTENT_PRIMARY':'just a test',"
+                + "'IS_HEAD_OF_FAMILY':true,"
+                + "'PERSON':{ 'NAME':'person1' },"
+                + "'LANGUAGE_CODES':{ 'CODE':'en', 'CONFIDENCE': 100}"
+                + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        final boolean needsRetries = indexDocumentWithRetry(request);
+        if (needsRetries) {
+            // Indexing has failed after multiple retries
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
+
+        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Updating template {}", templateName);
+        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
+        // Create a template
+        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
+        utrequest.source(updatedTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
+        if (!updateTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+
+        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Updating indexes matching template {}", templateName);
+        updateIndex("testUpdateIndexesOfUnSupportedChangesInTemplate", templateName);
+
+        // Verify index mapping has new properties
+        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_DISPOSED");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", propMapping);
+
+        // Verify allowed field changes has updated field mapping
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> idPropMapping = (Map<String, Object>) props.get("ID");
+        LOGGER.info("idPropMapping {} ", idPropMapping);
+        final Object idPropValue = idPropMapping.get("ignore_malformed");
+        // Verify property mapping value has changed
+        assertNull("testUpdateUnsupportedChanges", idPropValue);
+
+        // Verify index mapping of unsupported field changes has not changed
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> langPropMapping = (Map<String, Object>) props.get("LANGUAGE_CODES");
+        final String propValue = (String) langPropMapping.get("type");
+        // Verify property mapping value is same as before
+        assertTrue("testUpdateUnsupportedChanges", propValue.equals("nested"));
+
+        // Index more data
+        request = new IndexRequest(indexName);
+        request.id("2");
+        request.routing("1");
+        jsonString = "{"
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'},"
+            + "'LANGUAGE_CODES':{ 'CODE':'ko', 'CONFIDENCE': 100}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+        try {
+            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
+            assertTrue(response.status() == RestStatus.CREATED);
+        } catch (final ElasticsearchException e) {
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 2);
     }
 
     private void updateIndex(final String testName, final String templateName)
