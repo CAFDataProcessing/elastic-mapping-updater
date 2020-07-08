@@ -1,0 +1,69 @@
+{
+    "order": 0,
+    "version": 7030099,
+    "index_patterns": [
+        ".kibana_task_manager"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": "1",
+            "auto_expand_replicas": "0-1"
+        }
+    },
+    "mappings": {
+        "dynamic": false,
+        "properties": {
+            "task": {
+                "properties": {
+                    "taskType": {
+                        "type": "keyword"
+                    },
+                    "runAt": {
+                        "type": "date"
+                    },
+                    "scope": {
+                        "type": "keyword"
+                    },
+                    "interval": {
+                        "type": "text"
+                    },
+                    "state": {
+                        "type": "text"
+                    },
+                    "params": {
+                        "type": "text"
+                    },
+                    "user": {
+                        "type": "keyword"
+                    },
+                    "scheduledAt": {
+                        "type": "date"
+                    },
+                    "attempts": {
+                        "type": "integer"
+                    },
+                    "status": {
+                        "type": "keyword"
+                    }
+                }
+            },
+            "type": {
+                "type": "keyword"
+            },
+            "kibana": {
+                "properties": {
+                    "apiVersion": {
+                        "type": "integer"
+                    },
+                    "uuid": {
+                        "type": "keyword"
+                    },
+                    "version": {
+                        "type": "integer"
+                    }
+                }
+            }
+        }
+    },
+    "aliases": {}
+}

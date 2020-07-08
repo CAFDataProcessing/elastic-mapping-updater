@@ -29,6 +29,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
+import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.GetIndexTemplatesResponse;
@@ -90,13 +91,23 @@ final class ElasticRequestHandler
         final String filter = "/" + String.join(",", indexNamePatterns);
         final Request request = new Request("GET", filter);
 
-        final JsonNode responseNode = performRequest(request);
+        try {
+            final JsonNode responseNode = performRequest(request);
 
-        final Iterable<String> fieldNames = () -> responseNode.fieldNames();
+            final Iterable<String> fieldNames = () -> responseNode.fieldNames();
 
-        return StreamSupport.stream(fieldNames.spliterator(), false)
-            .sorted()
-            .collect(Collectors.toList());
+            return StreamSupport.stream(fieldNames.spliterator(), false)
+                .sorted()
+                .collect(Collectors.toList());
+        } catch (final ResponseException e) {
+            final int statusCode = e.getResponse().getStatusLine().getStatusCode();
+            if (statusCode == 404) {
+                // No indexes matching template pattern
+                return Collections.emptyList();
+            } else {
+                throw e;
+            }
+        }
     }
 
     public GetIndexResponse getIndex(final String indexName) throws IOException, GetIndexException
