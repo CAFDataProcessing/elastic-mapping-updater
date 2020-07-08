@@ -91,8 +91,7 @@ final class ElasticRequestHandler
         final String filter = "/" + String.join(",", indexNamePatterns);
         final Request request = new Request("GET", filter);
 
-        try
-        {
+        try {
             final JsonNode responseNode = performRequest(request);
 
             final Iterable<String> fieldNames = () -> responseNode.fieldNames();
@@ -105,8 +104,7 @@ final class ElasticRequestHandler
             if (statusCode == 404) {
                 // No indexes matching template pattern
                 return Collections.emptyList();
-            }
-            else {
+            } else {
                 throw e;
             }
         }
