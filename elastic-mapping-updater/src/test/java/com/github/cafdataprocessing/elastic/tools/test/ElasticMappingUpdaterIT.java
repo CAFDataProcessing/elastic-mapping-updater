@@ -390,13 +390,13 @@ public final class ElasticMappingUpdaterIT
         request.id("1");
         request.routing("1");
         String jsonString = "{"
-                + "'TITLE':'doc1',"
-                + "'DATE_PROCESSED\":'2020-02-11',"
-                + "'CONTENT_PRIMARY':'just a test',"
-                + "'IS_HEAD_OF_FAMILY':true,"
-                + "'PERSON':{ 'NAME':'person1' },"
-                + "'LANGUAGE_CODES':{ 'CODE':'en', 'CONFIDENCE': 100}"
-                + "}";
+            + "'TITLE':'doc1',"
+            + "'DATE_PROCESSED\":'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person1' },"
+            + "'LANGUAGE_CODES':{ 'CODE':'en', 'CONFIDENCE': 100}"
+            + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);
         request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);

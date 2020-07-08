@@ -202,9 +202,10 @@ public final class ElasticMappingUpdater
     }
 
     private static boolean isMappingChangeSafe(
-            final Map<String, Object> templateMapping,
-            final Map<String, Object> indexMapping,
-            final Set<String> allowedFieldDifferences)
+        final Map<String, Object> templateMapping,
+        final Map<String, Object> indexMapping,
+        final Set<String> allowedFieldDifferences
+    )
         throws JsonProcessingException
     {
         final Map<String, Object> ftemplateMapping = FlatMapUtil.flatten(templateMapping);
@@ -217,10 +218,10 @@ public final class ElasticMappingUpdater
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
             entriesDiffering.forEach((key, value) -> {
-                                                         LOGGER.warn("Unsupported mapping change : {} - current: {} target: {}",
-                                                                 key, value.rightValue(), value.leftValue());
-                                                         allowedFieldDifferences.remove(getFieldName(key));
-                                                     });
+                LOGGER.warn("Unsupported mapping change : {} - current: {} target: {}",
+                            key, value.rightValue(), value.leftValue());
+                allowedFieldDifferences.remove(getFieldName(key));
+            });
             return false;
         }
     }
@@ -246,35 +247,33 @@ public final class ElasticMappingUpdater
 
             // Check if 'type' has changed for object/nested properties
             final Map<String, ValueDifference<Object>> typeDifferences = entriesDiffering.entrySet().stream()
-                            .filter(e -> ((Map<?, ?>)(e.getValue().leftValue())).containsKey(MAPPING_PROPS_KEY) &&
-                                    (((Map<?, ?>)(e.getValue().leftValue())).containsKey(MAPPING_TYPE_KEY)
-                                        || ((Map<?, ?>)(e.getValue().rightValue())).containsKey(MAPPING_TYPE_KEY)))
-                            .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+                .filter(e -> ((Map<?, ?>) (e.getValue().leftValue())).containsKey(MAPPING_PROPS_KEY)
+                && (((Map<?, ?>) (e.getValue().leftValue())).containsKey(MAPPING_TYPE_KEY)
+                || ((Map<?, ?>) (e.getValue().rightValue())).containsKey(MAPPING_TYPE_KEY)))
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 
             // Check if any fields have parameters being removed that may not be reflected in the index mapping update
             final Map<String, ValueDifference<Object>> entriesBeingRemoved = entriesDiffering.entrySet().stream()
-                            .filter(e -> !typeDifferences.containsKey(e.getKey()))
-                            .filter(e -> ((Map<?, ?>)(e.getValue().rightValue())).size() > ((Map<?, ?>)(e.getValue().leftValue())).size())
-                            .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
-            if(!entriesBeingRemoved.isEmpty())
-            {
+                .filter(e -> !typeDifferences.containsKey(e.getKey()))
+                .filter(e -> ((Map<?, ?>) (e.getValue().rightValue())).size() > ((Map<?, ?>) (e.getValue().leftValue())).size())
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+            if (!entriesBeingRemoved.isEmpty()) {
                 entriesBeingRemoved.forEach(
-                        (key, value) ->
-                            LOGGER.warn(
-                                "Mapping changes with some parameters being removed may not be applied for : {} - current: {} target: {}",
-                                key, value.rightValue(), value.leftValue())
-                        );
+                    (key, value)
+                    -> LOGGER.warn(
+                        "Mapping changes with some parameters being removed may not be applied for : {} - current: {} target: {}",
+                        key, value.rightValue(), value.leftValue())
+                );
                 unsupportedObjectChanges = true;
             }
 
-            if(!typeDifferences.isEmpty())
-            {
+            if (!typeDifferences.isEmpty()) {
                 typeDifferences.forEach(
-                        (key, value) -> {
-                            LOGGER.warn("Unsupported object/nested mapping change : {} - current: {} target: {}",
-                                key, value.rightValue(), value.leftValue());
-                            allowedFieldDifferences.remove(key);
-                        });
+                    (key, value) -> {
+                        LOGGER.warn("Unsupported object/nested mapping change : {} - current: {} target: {}",
+                                    key, value.rightValue(), value.leftValue());
+                        allowedFieldDifferences.remove(key);
+                    });
                 unsupportedObjectChanges = true;
             }
         }
