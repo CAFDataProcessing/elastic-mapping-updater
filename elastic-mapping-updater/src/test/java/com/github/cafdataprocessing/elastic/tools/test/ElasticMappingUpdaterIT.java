@@ -333,6 +333,30 @@ public final class ElasticMappingUpdaterIT
         verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 2);
     }
 
+    @Test
+    public void testNoIndexesMatchingTemplate() throws IOException
+    {
+        LOGGER.info("Running test 'testNoIndexesMatchingTemplate'...");
+        final String templateName = ".kibana_task_manager";
+        final String origTemplateSourceFile = "/template7.json";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testNoIndexesMatchingTemplate - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if (!putTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+
+        // Try updating indexes for template that has no matching indexes
+        LOGGER.info("testNoIndexesMatchingTemplate - Updating indexes matching template {}", templateName);
+
+        updateIndex("testNoIndexesMatchingTemplate", templateName);
+    }
+
     private void updateIndex(final String testName, final String templateName)
     {
         LOGGER.info("{}: {}", testName, templateName);
