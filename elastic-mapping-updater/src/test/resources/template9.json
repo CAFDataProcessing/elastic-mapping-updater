@@ -85,8 +85,8 @@
             "FAILURES": {
                 "properties": {
                     "AJP_JOB_RUN_ID": {
-                        "type": "long",
-                        "ignore_malformed": true
+                        "type": "keyword",
+                        "ignore_above": 20
                     },
                     "AJP_WORK_UNIT_ID": {
                         "type": "keyword",
@@ -129,6 +129,33 @@
                     }
                 }
             },
+            "ENTITIES": {
+                "properties": {
+                    "ENTITY_ID": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "GRAMMAR_ID": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "MATCHES": {
+                        "properties": {
+                            "SCORE": {
+                                "type": "double"
+                            },
+                            "VALUE": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            }
+                        }
+                    },
+                    "VALUES": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
             "PERSON": {
                 "properties": {
                     "NAME": {
@@ -158,8 +185,7 @@
                 }
             },
             "ID": {
-                "type": "long",
-                "ignore_malformed": true
+                "type": "long"
             },
             "TITLE": {
                 "type": "text",
@@ -170,8 +196,7 @@
                 "analyzer": "path_analyzer"
             },
             "IS_HEAD_OF_FAMILY": {
-                "type": "long",
-                "ignore_malformed": true
+                "type": "boolean"
             },
             "DATE_PROCESSED": {
                 "type": "date",
@@ -182,7 +207,6 @@
                 "format": "strict_date_optional_time||epoch_second"
             },
             "LANGUAGE_CODES": {
-                "include_in_parent": true,
                 "properties": {
                     "CODE": {
                         "ignore_above": 10922,
@@ -193,12 +217,11 @@
                         "store": true,
                         "type": "double"
                     }
-                },
-                "type": "nested"
+                }
             }
         }
     },
     "index_patterns": [
-        "*_acmesample-*"
+        "*_lang-*"
     ]
 }

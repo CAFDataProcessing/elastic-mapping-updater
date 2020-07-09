@@ -6,7 +6,7 @@ Indexes if created using index templates would need to be updated if the templat
 The tool first finds all index templates in an Elasticsearch instance and updates the mappings of all indexes that match each template pattern.
 
 - Only new property additions are allowed in the index mapping updates. Property deletions are ignored, i.e. not removed from index mappings.
-- Changes to mapping parameters like "type" for an existing property are not supported. The index will not be updated and none of the index mapping changes will be applied. 
+- Changes to mapping parameters like "type" for an existing property are not supported. The safe index mapping changes will be applied and the unsupported mapping changes will be ignored. 
 - If the updated template has any "dynamic_templates" defined in the mapping they will overwrite the existing "dynamic_templates" in the index mapping.
 
 It can be used from another Java project by including the following dependency:

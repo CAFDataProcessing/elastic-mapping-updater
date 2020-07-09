@@ -19,10 +19,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.elasticsearch.client.indices.GetIndexResponse;
@@ -38,7 +40,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplatesException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
-import com.github.cafdataprocessing.elastic.tools.exceptions.UnsupportedMappingChangesException;
 import com.github.cafdataprocessing.elastic.tools.utils.FlatMapUtil;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
@@ -50,6 +51,7 @@ public final class ElasticMappingUpdater
 
     private static final String MAPPING_PROPS_KEY = "properties";
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
+    private static final String MAPPING_TYPE_KEY = "type";
 
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
@@ -146,64 +148,64 @@ public final class ElasticMappingUpdater
 
             LOGGER.info("Comparing index mapping for '{}'", indexName);
 
-            try {
-                final Object indexProperties = Optional
-                    .ofNullable(indexTypeMappings.get(MAPPING_PROPS_KEY))
-                    .orElseGet(Collections::emptyMap);
+            final Object indexProperties = Optional
+                .ofNullable(indexTypeMappings.get(MAPPING_PROPS_KEY))
+                .orElseGet(Collections::emptyMap);
 
-                @SuppressWarnings("unchecked")
-                final Map<String, Object> mappingsChanges = getMappingChanges(
-                    (Map<String, Object>) templateProperties,
-                    (Map<String, Object>) indexProperties);
+            @SuppressWarnings("unchecked")
+            final Map<String, Object> mappingsChanges = getMappingChanges(
+                (Map<String, Object>) templateProperties,
+                (Map<String, Object>) indexProperties);
 
-                final Map<String, Object> mappingsRequest = new HashMap<>();
-                mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
+            final Map<String, Object> mappingsRequest = new HashMap<>();
+            mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
-                // Add all dynamic_templates in template to index mapping
-                @SuppressWarnings("unchecked")
-                final List<Object> dynamicTemplatesInTemplate = (List<Object>) Optional
-                    .ofNullable(templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
-                    .orElseGet(Collections::emptyList); // Empty list will clear all existing dynamic_templates in index mapping
+            // Add all dynamic_templates in template to index mapping
+            @SuppressWarnings("unchecked")
+            final List<Object> dynamicTemplatesInTemplate = (List<Object>) Optional
+                .ofNullable(templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
+                .orElseGet(Collections::emptyList); // Empty list will clear all existing dynamic_templates in index mapping
 
-                @SuppressWarnings("unchecked")
-                final List<Object> dynamicTemplatesInIndex = (List<Object>) Optional
-                    .ofNullable(indexTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
-                    .orElseGet(Collections::emptyList);
+            @SuppressWarnings("unchecked")
+            final List<Object> dynamicTemplatesInIndex = (List<Object>) Optional
+                .ofNullable(indexTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
+                .orElseGet(Collections::emptyList);
 
-                final List<Object> dynamicTemplatesUpdates = new ArrayList<>(dynamicTemplatesInTemplate);
+            final List<Object> dynamicTemplatesUpdates = new ArrayList<>(dynamicTemplatesInTemplate);
 
-                LOGGER.debug("Dynamic_templates: current: {} target: {}", dynamicTemplatesInIndex, dynamicTemplatesInTemplate);
+            LOGGER.debug("Dynamic_templates: current: {} target: {}", dynamicTemplatesInIndex, dynamicTemplatesInTemplate);
 
-                final boolean dynamicTemplatesHaveChanged = hasDynamicTemplateChanged(dynamicTemplatesInTemplate,
-                                                                                      dynamicTemplatesInIndex);
+            final boolean dynamicTemplatesHaveChanged = hasDynamicTemplateChanged(dynamicTemplatesInTemplate,
+                                                                                  dynamicTemplatesInIndex);
 
-                LOGGER.info("{}", dynamicTemplatesHaveChanged ? "Current dynamic_templates will be replaced with updated version."
-                            : "No dynamic_template changes required.");
+            LOGGER.info("{}", dynamicTemplatesHaveChanged ? "Current dynamic_templates will be replaced with updated version."
+                        : "No dynamic_template changes required.");
 
-                mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesUpdates);
+            mappingsRequest.put(MAPPING_DYNAMIC_TEMPLATES_KEY, dynamicTemplatesUpdates);
 
-                LOGGER.info("'{}' comparison complete.", indexName);
-                final boolean indexNeedsUpdates = !mappingsChanges.isEmpty() || dynamicTemplatesHaveChanged;
-                if (!indexNeedsUpdates) {
-                    LOGGER.info("No index mapping changes required.");
+            LOGGER.info("'{}' comparison complete.", indexName);
+            final boolean indexNeedsUpdates = !mappingsChanges.isEmpty() || dynamicTemplatesHaveChanged;
+            if (!indexNeedsUpdates) {
+                LOGGER.info("No index mapping changes required.");
+            }
+
+            if (!dryRun) {
+                // Update the index mapping
+                if (indexNeedsUpdates) {
+                    LOGGER.info("Updating index mapping...");
+                    elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
+                    LOGGER.info("Index mapping updated");
                 }
-
-                if (!dryRun) {
-                    // Update the index mapping
-                    if (indexNeedsUpdates) {
-                        LOGGER.info("Updating index mapping...");
-                        elasticRequestHandler.updateIndexMapping(indexName, mappingsRequest);
-                        LOGGER.info("Index mapping updated");
-                    }
-                }
-            } catch (final UnsupportedMappingChangesException e) {
-                LOGGER.warn("Index cannot be updated due to unsupported mapping changes.");
             }
         }
         LOGGER.info("---- Analysis of indexes matching template '{}' completed ----", templateName);
     }
 
-    private static boolean isMappingChangeSafe(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
+    private static boolean isMappingChangeSafe(
+        final Map<String, Object> templateMapping,
+        final Map<String, Object> indexMapping,
+        final Set<String> allowedFieldDifferences
+    )
         throws JsonProcessingException
     {
         final Map<String, Object> ftemplateMapping = FlatMapUtil.flatten(templateMapping);
@@ -215,34 +217,75 @@ public final class ElasticMappingUpdater
         } else {
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
-            entriesDiffering.forEach((key, value) -> LOGGER.warn("Unsupported mapping change : {} - current: {} target: {}",
-                                                                 key, value.rightValue(), value.leftValue()));
+            entriesDiffering.forEach((key, value) -> {
+                LOGGER.warn("Unsupported mapping change : {} - current: {} target: {}",
+                            key, value.rightValue(), value.leftValue());
+                allowedFieldDifferences.remove(getFieldName(key));
+            });
             return false;
         }
     }
 
+    private static String getFieldName(final String key)
+    {
+        return key.split(Pattern.quote("/"))[1];
+    }
+
     private Map<String, Object> getMappingChanges(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
-        throws JsonProcessingException, UnsupportedMappingChangesException
+        throws JsonProcessingException
     {
         final Map<String, Object> mappingsChanges = new HashMap<>();
         final MapDifference<String, Object> diff = Maps.difference(templateMapping, indexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
+        final Set<String> allowedFieldDifferences = new HashSet<>(entriesDiffering.keySet());
 
+        boolean unsupportedObjectChanges = false;
         if (!entriesDiffering.isEmpty()) {
             LOGGER.info("--Differences between template and index mapping--");
             entriesDiffering.forEach((key, value) -> LOGGER.info("  {} - current: {} target: {}",
                                                                  key, value.rightValue(), value.leftValue()));
+
+            // Check if 'type' has changed for object/nested properties
+            final Map<String, ValueDifference<Object>> typeDifferences = entriesDiffering.entrySet().stream()
+                .filter(e -> ((Map<?, ?>) (e.getValue().leftValue())).containsKey(MAPPING_PROPS_KEY)
+                && (((Map<?, ?>) (e.getValue().leftValue())).containsKey(MAPPING_TYPE_KEY)
+                || ((Map<?, ?>) (e.getValue().rightValue())).containsKey(MAPPING_TYPE_KEY)))
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+
+            // Check if any fields have parameters being removed that may not be reflected in the index mapping update
+            final Map<String, ValueDifference<Object>> entriesBeingRemoved = entriesDiffering.entrySet().stream()
+                .filter(e -> !typeDifferences.containsKey(e.getKey()))
+                .filter(e -> ((Map<?, ?>) (e.getValue().rightValue())).size() > ((Map<?, ?>) (e.getValue().leftValue())).size())
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+            if (!entriesBeingRemoved.isEmpty()) {
+                entriesBeingRemoved.forEach(
+                    (key, value)
+                    -> LOGGER.warn(
+                        "Mapping changes with some parameters being removed may not be applied for : {} - current: {} target: {}",
+                        key, value.rightValue(), value.leftValue())
+                );
+                unsupportedObjectChanges = true;
+            }
+
+            if (!typeDifferences.isEmpty()) {
+                typeDifferences.forEach(
+                    (key, value) -> {
+                        LOGGER.warn("Unsupported object/nested mapping change : {} - current: {} target: {}",
+                                    key, value.rightValue(), value.leftValue());
+                        allowedFieldDifferences.remove(key);
+                    });
+                unsupportedObjectChanges = true;
+            }
         }
 
-        if (!isMappingChangeSafe(templateMapping, indexMapping)) {
-            throw new UnsupportedMappingChangesException("Unsupported mapping changes");
+        if (!isMappingChangeSafe(templateMapping, indexMapping, allowedFieldDifferences) || unsupportedObjectChanges) {
+            LOGGER.warn("Unsupported mapping changes will not be applied to the index.");
         }
 
-        final Set<String> fields = entriesDiffering.keySet();
-        LOGGER.info("{}", fields.isEmpty()
+        LOGGER.info("{}", allowedFieldDifferences.isEmpty()
                     ? "No changes required to existing properties."
-                    : "Properties to be changed: " + fields);
-        for (final String field : fields) {
+                    : "Properties to be changed: " + allowedFieldDifferences);
+        for (final String field : allowedFieldDifferences) {
             mappingsChanges.put(field, ((ValueDifference<?>) entriesDiffering.get(field)).leftValue());
         }
 
