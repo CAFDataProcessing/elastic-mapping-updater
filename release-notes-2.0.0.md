@@ -10,3 +10,6 @@ ${version-number}
 
 #### Known Issues
 - None
+
+#### Breaking Changes
+- **SCMOD-9861**: Updated to ignore unsupported mapping changes
