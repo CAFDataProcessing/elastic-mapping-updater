@@ -63,6 +63,22 @@ public final class Program implements Callable<Void>
     private int esRestPort;
 
     @Option(
+        names = {"-u", "--esUsername"},
+        paramLabel = "<esUsername>",
+        defaultValue = "",
+        description = "Elasticsearch username. Defaults to empty (anonymous access)"
+    )
+    private String esUsername;
+
+    @Option(
+        names = {"-w", "--esPassword"},
+        paramLabel = "<esPassword>",
+        defaultValue = "",
+        description = "Elasticsearch password. Defaults to empty (anonymous access)"
+    )
+    private String esPassword;
+
+    @Option(
         names = {"-s", "--esConnectTimeout"},
         paramLabel = "<esConnectTimeout>",
         defaultValue = "5000",
@@ -95,7 +111,8 @@ public final class Program implements Callable<Void>
             LOGGER.error("Elasticsearch hostname must be specified.");
             CommandLine.usage(new Program(), System.out);
         } else {
-            ElasticMappingUpdater.update(dryRun, esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
+            ElasticMappingUpdater.update(dryRun, esHostNames, esProtocol, esRestPort, esUsername, esPassword,
+                                         esConnectTimeout, esSocketTimeout);
         }
         return null;
     }

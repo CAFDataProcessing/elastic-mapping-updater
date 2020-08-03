@@ -26,6 +26,8 @@ public static void update(
             final String esProtocol,
             final String esHostNames,
             final int esRestPort,
+            final String esUsername,
+            final String esPassword,
             final int esConnectTimeout,
             final int esSocketTimeout)
     throws IOException, TemplateNotFoundException, GetIndexException,
@@ -36,8 +38,8 @@ public static void update(
 This module provides a simple command-line interface which wraps the `ElasticMappingUpdater.update()` function.
 
     Usage: elastic-mapping-updater [-d] -n=<esHostNames> [-p=<esProtocol>]
-                               [-r=<esRestPort>] [-s=<esConnectTimeout>]
-                               [-t=<esSocketTimeout>]
+                               [-r=<esRestPort>] [-u=<esUsername>] [-w=<esPassword>]
+                               [-s=<esConnectTimeout>] [-t=<esSocketTimeout>]
         -d, --dryRun   If true, the tool lists the mapping changes to the indexes but
                        does not apply them. Defaults to false.
         -n, --esHostNames=<esHostNames>
@@ -47,6 +49,10 @@ This module provides a simple command-line interface which wraps the `ElasticMap
                        http
         -r, --esRestPort=<esRestPort>
                      Elasticsearch REST API port. Default 9200
+        -u, --esUsername=<esUsername>
+                     Elasticsearch username. Defaults to empty (anonymous access)
+        -w, --esPassword=<esPassword>
+                     Elasticsearch password. Defaults to empty (anonymous access)
         -s, --esConnectTimeout=<esConnectTimeout>
                      Determines the timeout until a new connection is fully
                        established. Default 5000 (5 seconds)

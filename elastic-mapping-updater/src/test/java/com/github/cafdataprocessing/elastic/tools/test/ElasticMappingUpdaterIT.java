@@ -74,6 +74,8 @@ public final class ElasticMappingUpdaterIT
     private final String protocol;
     private final String host;
     private final int port;
+    private final String username;
+    private final String password;
     private final int connectTimeout;
     private final int socketTimeout;
 
@@ -82,6 +84,8 @@ public final class ElasticMappingUpdaterIT
         protocol = System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL");
         host = System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES");
         port = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT"));
+        username = "";
+        password = "";
         connectTimeout = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT"));
         socketTimeout = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT"));
 
@@ -475,7 +479,8 @@ public final class ElasticMappingUpdaterIT
     {
         LOGGER.info("{}: {}", testName, templateName);
         try {
-            ElasticMappingUpdater.update(false, host, protocol, port, connectTimeout, socketTimeout);
+            ElasticMappingUpdater.update(false, host, protocol, port, username, password, connectTimeout,
+                                         socketTimeout);
         } catch (final IOException | UnexpectedResponseException | GetIndexException | GetTemplatesException e) {
             LOGGER.error(testName, e);
             fail(testName + ":" + e);

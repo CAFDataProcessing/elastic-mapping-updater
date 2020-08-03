@@ -17,6 +17,10 @@ package com.github.cafdataprocessing.elastic.tools;
 
 import javax.annotation.Nonnull;
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 
@@ -37,6 +41,22 @@ final class ElasticProvider
         final RestClientBuilder restClientBuilder = RestClient.builder(eshosts);
         restClientBuilder.setRequestConfigCallback(builder -> builder.setConnectTimeout(elasticSettings.getElasticSearchConnectTimeout())
             .setSocketTimeout(elasticSettings.getElasticSearchSocketTimeout()));
+
+        final String username = elasticSettings.getElasticSearchUsername();
+        final String password = elasticSettings.getElasticSearchPassword();
+        if (credentialsSupplied(username, password)) {
+            final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+            credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
+
+            restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                .setDefaultCredentialsProvider(credentialsProvider));
+        }
+
         return restClientBuilder.build();
+    }
+
+    private static boolean credentialsSupplied(final String username, final String password)
+    {
+        return username != null && !username.trim().isEmpty() && password != null;
     }
 }
