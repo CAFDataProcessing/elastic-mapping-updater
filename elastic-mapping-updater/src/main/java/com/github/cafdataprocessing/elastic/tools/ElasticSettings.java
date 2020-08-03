@@ -23,17 +23,24 @@ final class ElasticSettings
 
     private final int elasticSearchRestPort;
 
+    private final String elasticSearchUsername;
+
+    private final String elasticSearchPassword;
+
     private final int elasticSearchConnectTimeout;
 
     private final int elasticSearchSocketTimeout;
 
     public ElasticSettings(final String elasticSearchProtocol, final String elasticSearchHosts,
-                           final int elasticSearchRestPort, final int elasticSearchConnectTimeout,
+                           final int elasticSearchRestPort, final String elasticSearchUsername,
+                           final String elasticSearchPassword, final int elasticSearchConnectTimeout,
                            final int elasticSearchSocketTimeout)
     {
         this.elasticSearchProtocol = elasticSearchProtocol;
         this.elasticSearchHosts = elasticSearchHosts;
         this.elasticSearchRestPort = elasticSearchRestPort;
+        this.elasticSearchUsername = elasticSearchUsername;
+        this.elasticSearchPassword = elasticSearchPassword;
         this.elasticSearchConnectTimeout = elasticSearchConnectTimeout;
         this.elasticSearchSocketTimeout = elasticSearchSocketTimeout;
     }
@@ -66,6 +73,16 @@ final class ElasticSettings
     public int getElasticSearchRestPort()
     {
         return elasticSearchRestPort;
+    }
+
+    public String getElasticSearchUsername()
+    {
+        return elasticSearchUsername;
+    }
+
+    public String getElasticSearchPassword()
+    {
+        return elasticSearchPassword;
     }
 
     public int getElasticSearchConnectTimeout()

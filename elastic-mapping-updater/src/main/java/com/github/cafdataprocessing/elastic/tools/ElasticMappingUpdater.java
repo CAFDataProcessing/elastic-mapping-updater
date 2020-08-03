@@ -64,6 +64,8 @@ public final class ElasticMappingUpdater
      * @param esHostNames Comma separated list of Elasticsearch hostnames
      * @param esProtocol The protocol to connect with Elasticsearch server
      * @param esRestPort Elasticsearch REST API port
+     * @param esUsername Elasticsearch username
+     * @param esPassword Elasticsearch password
      * @param esConnectTimeout Timeout until a new connection is fully established
      * @param esSocketTimeout Time of inactivity to wait for packets[data] to be received
      * @throws IOException thrown if the elasticsearch request cannot be processed
@@ -76,12 +78,15 @@ public final class ElasticMappingUpdater
         final String esHostNames,
         final String esProtocol,
         final int esRestPort,
+        final String esUsername,
+        final String esPassword,
         final int esConnectTimeout,
         final int esSocketTimeout
     ) throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
     {
         final ElasticMappingUpdater updater
-            = new ElasticMappingUpdater(dryRun, esHostNames, esProtocol, esRestPort, esConnectTimeout, esSocketTimeout);
+            = new ElasticMappingUpdater(dryRun, esHostNames, esProtocol, esRestPort, esUsername, esPassword,
+                                        esConnectTimeout, esSocketTimeout);
         LOGGER.info("Updating indexes on '{}'. {}", esHostNames,
                     dryRun ? "This is a dry run. No indexes will actually be updated."
                         : "Indexes with no mapping conflicts will be updated.");
@@ -93,6 +98,8 @@ public final class ElasticMappingUpdater
         final String esHostNames,
         final String esProtocol,
         final int esRestPort,
+        final String esUsername,
+        final String esPassword,
         final int esConnectTimeout,
         final int esSocketTimeout)
     {
@@ -100,7 +107,8 @@ public final class ElasticMappingUpdater
         this.objectMapper = new ObjectMapper();
         this.objectMapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
         final ElasticSettings elasticSettings
-            = new ElasticSettings(esProtocol, esHostNames, esRestPort, esConnectTimeout, esSocketTimeout);
+            = new ElasticSettings(esProtocol, esHostNames, esRestPort, esUsername, esPassword,
+                                  esConnectTimeout, esSocketTimeout);
 
         final ElasticMappingUpdaterConfiguration schemaUpdaterConfiguration = new ElasticMappingUpdaterConfiguration(elasticSettings);
 
