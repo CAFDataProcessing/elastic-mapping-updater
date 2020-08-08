@@ -156,6 +156,17 @@
             "DATE_DISPOSED": {
                 "type": "date",
                 "format": "strict_date_optional_time||epoch_second"
+            },
+            "LANGUAGE_CODES": {
+                "properties": {
+                    "CODE": {
+                      "type": "keyword",
+                      "ignore_above": 10922
+                    },
+                    "CONFIDENCE": {
+                      "type": "double"
+                    }
+                }
             }
         }
     },
