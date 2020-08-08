@@ -226,7 +226,7 @@ public final class ElasticMappingUpdater
         final Map<String, Object> findexMapping = FlatMapUtil.flatten(indexMapping);
         final MapDifference<String, Object> diff = Maps.difference(ftemplateMapping, findexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
-        boolean safeChangesOnly = true;
+        boolean safeChangesOnly;
         if (entriesDiffering.isEmpty()) {
             safeChangesOnly = true;
         } else {
