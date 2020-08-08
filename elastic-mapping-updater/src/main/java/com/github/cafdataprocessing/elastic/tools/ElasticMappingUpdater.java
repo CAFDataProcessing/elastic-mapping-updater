@@ -214,7 +214,6 @@ public final class ElasticMappingUpdater
         LOGGER.info("---- Analysis of indexes matching template '{}' completed ----", templateName);
     }
 
-    @SuppressWarnings("unchecked")
     private static boolean isMappingChangeSafe(
         final Map<String, Object> templateMapping,
         final Map<String, Object> indexMapping,
@@ -255,7 +254,7 @@ public final class ElasticMappingUpdater
         entriesOnlyInIndex.entrySet().stream()
                 .filter(e -> isUnsupportedParam(e.getKey()))
                 .forEach(e -> {
-                        LOGGER.warn("Unsupported mapping change: field parameter being removed: {}-{}", e.getKey(), e.getValue());
+                        LOGGER.warn("Unsupported mapping change : field parameter being removed : {}:{}", e.getKey(), e.getValue());
                         unsupportedParamChanges.add(e.getKey());
                     }
                 );
@@ -372,29 +371,27 @@ public final class ElasticMappingUpdater
     }
 
     @SuppressWarnings("unchecked")
-    private void removeUnsupportedFieldChange(final Map<String, Object> mappingsChanges, final String key) {
-        final List<String> path = Arrays.asList(StringUtils.split(key.trim(), "/"));
+    private void removeUnsupportedFieldChange(final Map<String, Object> mappingsChanges, final String fieldPath) {
+        final List<String> path = Arrays.asList(StringUtils.split(fieldPath.trim(), "/"));
         final int size = path.size();
         int index = 0;
         if(size == 2)
         {
+            // for a field path like, /LANGUAGE_CODES/properties/CODE/type, the 'fieldName' to be removed here is 'CODE'
+            // remove property with unsupported mapping change
             final String fieldName = path.get(0);
-            LOGGER.debug("Removing field {}", fieldName);
             mappingsChanges.remove(fieldName);
         }
         else
         {
             while (index != size - 2) {
-                int i = index++;
+                final int i = index++;
                 final String currentFieldName = path.get(i);
-                LOGGER.debug("Checking field {}", currentFieldName);
                 final Object field = mappingsChanges.get(path.get(i));
                 if (field instanceof Map<?, ?>) {
                     final Map<String, Object> currentField = (Map<String, Object>) field;
-                    final String subPath = key.substring(key.indexOf(currentFieldName) + currentFieldName.length());
-                    LOGGER.debug("Get nested field {} from {}", subPath, currentField);
+                    final String subPath = fieldPath.substring(fieldPath.indexOf(currentFieldName) + currentFieldName.length());
                     removeUnsupportedFieldChange(currentField, subPath);
-                    LOGGER.debug("Cleaned nested field {}", currentField);
                 }
             }
         }
