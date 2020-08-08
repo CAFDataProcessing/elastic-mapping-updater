@@ -15,6 +15,7 @@
  */
 package com.github.cafdataprocessing.elastic.tools.test;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -439,14 +440,31 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("idPropMapping {} ", idPropMapping);
         final Object idPropValue = idPropMapping.get("ignore_malformed");
         // Verify property mapping parameter was not removed (although mapping update was to remove the ignore_malformed parameter)
-        assertNotNull("testUpdateUnsupportedChanges", idPropValue);
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", idPropValue);
 
         // Verify index mapping of unsupported field changes has not changed
         @SuppressWarnings("unchecked")
         final Map<String, Object> langPropMapping = (Map<String, Object>) props.get("LANGUAGE_CODES");
         final String propValue = (String) langPropMapping.get("type");
         // Verify property mapping value is same as before
-        assertTrue("testUpdateUnsupportedChanges", propValue.equals("nested"));
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", propValue.equals("nested"));
+
+        // Verify index mapping of unsupported field changes has been updated with allowed changes
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> targetRefPropMapping = (Map<String, Object>) props.get("TARGET_REFERENCES");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> targetRefProps = (Map<String, Object>) targetRefPropMapping.get("properties");
+        // Verify new property is added
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> tRefMapping = (Map<String, Object>) targetRefProps.get("TARGET_REFERENCE");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", tRefMapping);
+        // Verify unsupported change to nested property is not applied
+        final Boolean propDocValuesValue = (Boolean) tRefMapping.get("doc_values");
+        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", propDocValuesValue);
+        // Verify new nested property is added
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> destMapping = (Map<String, Object>) targetRefProps.get("DESTINATION_ID");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", destMapping);
 
         // Index more data
         request = new IndexRequest(indexName);
@@ -481,6 +499,8 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("Running test 'testUpdateIndexesWithNestedFieldChanges'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template10.json";
+        // 'store' param removed from nested property LANGUAGE_CODES/CODE
+        // nested property type='nested' is removed
         final String updatedTemplateSourceFile = "/template11.json";
         final String indexName = "jan_blue-000001";
 
