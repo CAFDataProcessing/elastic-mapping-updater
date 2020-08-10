@@ -113,8 +113,7 @@
                             "SCORE": {
                                 "type": "double"
                             }
-                        },
-                        "type": "nested"
+                        }
                     }
                 }
             },

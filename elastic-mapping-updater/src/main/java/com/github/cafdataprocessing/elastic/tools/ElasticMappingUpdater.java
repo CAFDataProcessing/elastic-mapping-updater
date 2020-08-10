@@ -56,7 +56,7 @@ public final class ElasticMappingUpdater
     private static final String MAPPING_TYPE_KEY = "type";
 
     private static final Set<String> UNSUPPORTED_PARAMS = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList("type", "doc_values", "store")));
+            new HashSet<>(Arrays.asList("doc_values", "store")));
 
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
@@ -249,7 +249,6 @@ public final class ElasticMappingUpdater
         }
         final Set<String> unsupportedParamChanges = new HashSet<>();
         final Map<String, Object> entriesOnlyInIndex = diff.entriesOnlyOnRight();
-        LOGGER.debug("Fields in index whose param is being removed : {}", entriesOnlyInIndex);
         // Field parameters that are currently set on a field in the index are now being removed
         entriesOnlyInIndex.entrySet().stream()
                 .filter(e -> isUnsupportedParam(e.getKey()))
@@ -347,7 +346,7 @@ public final class ElasticMappingUpdater
         // Remove any unsupportedMappings
         LOGGER.info("{}", unSupportedFieldDifferences.isEmpty()
                 ? "No unsupported field changes."
-                : "Unsupported field changes to be removed: " + unSupportedFieldDifferences);
+                : "Unsupported field changes that will not be included in the update: " + unSupportedFieldDifferences);
         for (final String field : unSupportedFieldDifferences) {
             removeUnsupportedFieldChange(mappingsChanges, field);
         }
