@@ -17,6 +17,7 @@ package com.github.cafdataprocessing.elastic.tools;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,6 +28,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.IndexTemplateMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
@@ -52,6 +54,9 @@ public final class ElasticMappingUpdater
     private static final String MAPPING_PROPS_KEY = "properties";
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
     private static final String MAPPING_TYPE_KEY = "type";
+
+    private static final Set<String> UNSUPPORTED_PARAMS = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList("doc_values", "store")));
 
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
@@ -212,7 +217,8 @@ public final class ElasticMappingUpdater
     private static boolean isMappingChangeSafe(
         final Map<String, Object> templateMapping,
         final Map<String, Object> indexMapping,
-        final Set<String> allowedFieldDifferences
+        final Set<String> allowedFieldDifferences,
+        final Set<String> unSupportedFieldDifferences
     )
         throws JsonProcessingException
     {
@@ -220,23 +226,60 @@ public final class ElasticMappingUpdater
         final Map<String, Object> findexMapping = FlatMapUtil.flatten(indexMapping);
         final MapDifference<String, Object> diff = Maps.difference(ftemplateMapping, findexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
+        boolean safeChangesOnly;
         if (entriesDiffering.isEmpty()) {
-            return true;
+            safeChangesOnly = true;
         } else {
             // Elasticsearch would throw IllegalArgumentException if any such
             // change is included in the index mapping updates
             entriesDiffering.forEach((key, value) -> {
                 LOGGER.warn("Unsupported mapping change : {} - current: {} target: {}",
                             key, value.rightValue(), value.leftValue());
-                allowedFieldDifferences.remove(getFieldName(key));
+                if(key.contains(MAPPING_PROPS_KEY))
+                {
+                    // nested field
+                    unSupportedFieldDifferences.add(key);
+                }
+                else
+                {
+                    allowedFieldDifferences.remove(getFieldName(key));
+                }
             });
-            return false;
+            safeChangesOnly = false;
         }
+        final Set<String> unsupportedParamChanges = new HashSet<>();
+        final Map<String, Object> entriesOnlyInIndex = diff.entriesOnlyOnRight();
+        // Field parameters that are currently set on a field in the index are now being removed
+        entriesOnlyInIndex.entrySet().stream()
+                .filter(e -> isUnsupportedParam(e.getKey()))
+                .forEach(e -> {
+                        LOGGER.warn("Unsupported mapping change : field parameter being removed : {}:{}", e.getKey(), e.getValue());
+                        unsupportedParamChanges.add(e.getKey());
+                    }
+                );
+        if(!unsupportedParamChanges.isEmpty())
+        {
+            unSupportedFieldDifferences.addAll(unsupportedParamChanges);
+            safeChangesOnly = false;
+        }
+        return safeChangesOnly;
+    }
+
+    private static boolean isUnsupportedParam(final String fieldPath)
+    {
+        final String paramName = getParamName(fieldPath);
+        return UNSUPPORTED_PARAMS.contains(paramName);
     }
 
     private static String getFieldName(final String key)
     {
         return key.split(Pattern.quote("/"))[1];
+    }
+
+    private static String getParamName(final String key)
+    {
+        final String[] path = key.split(Pattern.quote("/"));
+        return path[path.length - 1];
     }
 
     private Map<String, Object> getMappingChanges(final Map<String, Object> templateMapping, final Map<String, Object> indexMapping)
@@ -246,9 +289,11 @@ public final class ElasticMappingUpdater
         final MapDifference<String, Object> diff = Maps.difference(templateMapping, indexMapping);
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
         final Set<String> allowedFieldDifferences = new HashSet<>(entriesDiffering.keySet());
+        final Set<String> unSupportedFieldDifferences = new HashSet<>();
 
         boolean unsupportedObjectChanges = false;
         if (!entriesDiffering.isEmpty()) {
+            // Template has mapping changes to existing properties
             LOGGER.info("--Differences between template and index mapping--");
             entriesDiffering.forEach((key, value) -> LOGGER.info("  {} - current: {} target: {}",
                                                                  key, value.rightValue(), value.leftValue()));
@@ -286,7 +331,8 @@ public final class ElasticMappingUpdater
             }
         }
 
-        if (!isMappingChangeSafe(templateMapping, indexMapping, allowedFieldDifferences) || unsupportedObjectChanges) {
+        if (!isMappingChangeSafe(templateMapping, indexMapping, allowedFieldDifferences, unSupportedFieldDifferences)
+                || unsupportedObjectChanges) {
             LOGGER.warn("Unsupported mapping changes will not be applied to the index.");
         }
 
@@ -297,6 +343,15 @@ public final class ElasticMappingUpdater
             mappingsChanges.put(field, ((ValueDifference<?>) entriesDiffering.get(field)).leftValue());
         }
 
+        // Remove any unsupportedMappings
+        LOGGER.info("{}", unSupportedFieldDifferences.isEmpty()
+                ? "No unsupported field changes."
+                : "Unsupported field changes that will not be included in the update: " + unSupportedFieldDifferences);
+        for (final String field : unSupportedFieldDifferences) {
+            removeUnsupportedFieldChange(mappingsChanges, field);
+        }
+
+        // Add new properties defined in the template
         final Map<String, Object> entriesOnlyInTemplate = diff.entriesOnlyOnLeft();
         final Set<String> newProperties = entriesOnlyInTemplate.keySet();
         LOGGER.info("{}", newProperties.isEmpty()
@@ -312,6 +367,33 @@ public final class ElasticMappingUpdater
             return true;
         }
         return dynamicTemplatesInTemplate.retainAll(dynamicTemplatesInIndex);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void removeUnsupportedFieldChange(final Map<String, Object> mappingsChanges, final String fieldPath) {
+        final List<String> path = Arrays.asList(StringUtils.split(fieldPath.trim(), "/"));
+        final int size = path.size();
+        int index = 0;
+        if(size == 2)
+        {
+            // for a field path like, /LANGUAGE_CODES/properties/CODE/type, the 'fieldName' to be removed here is 'CODE'
+            // remove property with unsupported mapping change
+            final String fieldName = path.get(0);
+            mappingsChanges.remove(fieldName);
+        }
+        else
+        {
+            while (index != size - 2) {
+                final int i = index++;
+                final String currentFieldName = path.get(i);
+                final Object field = mappingsChanges.get(path.get(i));
+                if (field instanceof Map<?, ?>) {
+                    final Map<String, Object> currentField = (Map<String, Object>) field;
+                    final String subPath = fieldPath.substring(fieldPath.indexOf(currentFieldName) + currentFieldName.length());
+                    removeUnsupportedFieldChange(currentField, subPath);
+                }
+            }
+        }
     }
 
 }

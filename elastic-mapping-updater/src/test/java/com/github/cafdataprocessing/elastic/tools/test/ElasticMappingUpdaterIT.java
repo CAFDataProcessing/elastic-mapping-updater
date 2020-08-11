@@ -15,6 +15,7 @@
  */
 package com.github.cafdataprocessing.elastic.tools.test;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -439,14 +440,31 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("idPropMapping {} ", idPropMapping);
         final Object idPropValue = idPropMapping.get("ignore_malformed");
         // Verify property mapping parameter was not removed (although mapping update was to remove the ignore_malformed parameter)
-        assertNotNull("testUpdateUnsupportedChanges", idPropValue);
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", idPropValue);
 
         // Verify index mapping of unsupported field changes has not changed
         @SuppressWarnings("unchecked")
         final Map<String, Object> langPropMapping = (Map<String, Object>) props.get("LANGUAGE_CODES");
         final String propValue = (String) langPropMapping.get("type");
         // Verify property mapping value is same as before
-        assertTrue("testUpdateUnsupportedChanges", propValue.equals("nested"));
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", propValue.equals("nested"));
+
+        // Verify index mapping of unsupported field changes has been updated with allowed changes
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> targetRefPropMapping = (Map<String, Object>) props.get("TARGET_REFERENCES");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> targetRefProps = (Map<String, Object>) targetRefPropMapping.get("properties");
+        // Verify new property is added
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> tRefMapping = (Map<String, Object>) targetRefProps.get("TARGET_REFERENCE");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", tRefMapping);
+        // Verify unsupported change to nested property is not applied
+        final Boolean propDocValuesValue = (Boolean) tRefMapping.get("doc_values");
+        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", propDocValuesValue);
+        // Verify new nested property is added
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> destMapping = (Map<String, Object>) targetRefProps.get("DESTINATION_ID");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", destMapping);
 
         // Index more data
         request = new IndexRequest(indexName);
@@ -460,6 +478,95 @@ public final class ElasticMappingUpdaterIT
             + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
             + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'},"
             + "'LANGUAGE_CODES':{ 'CODE':'ko', 'CONFIDENCE': 100}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+        try {
+            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
+            assertTrue(response.status() == RestStatus.CREATED);
+        } catch (final ElasticsearchException e) {
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 2);
+    }
+
+    @Test
+    public void testUpdateIndexesWithNestedFieldChanges() throws IOException, GetIndexException, InterruptedException
+    {
+        LOGGER.info("Running test 'testUpdateIndexesWithNestedFieldChanges'...");
+        final String templateName = "sample-template";
+        final String origTemplateSourceFile = "/template10.json";
+        // 'store' param removed from nested property LANGUAGE_CODES/CODE
+        // nested property type='nested' is removed
+        final String updatedTemplateSourceFile = "/template11.json";
+        final String indexName = "jan_blue-000001";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if (!putTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Creating index matching template {}", templateName);
+        // Create an index with some data
+        IndexRequest request = new IndexRequest(indexName);
+        request.id("1");
+        request.routing("1");
+        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        final boolean needsRetries = indexDocumentWithRetry(request);
+        if (needsRetries) {
+            // Indexing has failed after multiple retries
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
+
+        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Updating template {}", templateName);
+        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
+        // Create a template
+        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
+        utrequest.source(updatedTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
+        if (!updateTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+
+        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Updating indexes matching template {}", templateName);
+        updateIndex("testUpdateIndexesWithNestedFieldChanges", templateName);
+
+        // Verify index mapping has new properties
+        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_DISPOSED");
+        assertNotNull("testUpdateIndexesWithNestedFieldChanges", propMapping);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> entPropMapping = (Map<String, Object>) props.get("ENTITIES");
+        LOGGER.info("entitiesPropMapping {} ", entPropMapping);
+
+        // Index more data
+        request = new IndexRequest(indexName);
+        request.id("2");
+        request.routing("1");
+        jsonString = "{"
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
             + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         request.source(jsonString, XContentType.JSON);

@@ -194,6 +194,19 @@
                     }
                 },
                 "type": "nested"
+            },
+            "TARGET_REFERENCES": {
+                "properties": {
+                    "TARGET_ID": {
+                        "type": "long"
+                    },
+                    "TARGET_REFERENCE": {
+                        "ignore_above": 10922,
+                        "index": false,
+                        "type": "keyword",
+                        "doc_values": false
+                    }
+                }
             }
         }
     },

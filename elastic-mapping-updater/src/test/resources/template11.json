@@ -81,54 +81,7 @@
             "required": true
         },
         "dynamic": "strict",
-        "properties": {
-            "FAILURES": {
-                "properties": {
-                    "AJP_JOB_RUN_ID": {
-                        "type": "keyword",
-                        "ignore_above": 20
-                    },
-                    "AJP_WORK_UNIT_ID": {
-                        "type": "keyword",
-                        "ignore_above": 20
-                    },
-                    "COMPONENT": {
-                        "type": "keyword",
-                        "ignore_above": 64
-                    },
-                    "DATE": {
-                        "type": "date",
-                        "format": "strict_date_optional_time||epoch_second"
-                    },
-                    "ID": {
-                        "type": "keyword",
-                        "ignore_above": 32
-                    },
-                    "MESSAGE": {
-                        "type": "text",
-                        "copy_to": [
-                            "FAILURES.MESSAGE_AGGREGATE"
-                        ],
-                        "analyzer": "general_analyzer"
-                    },
-                    "MESSAGE_AGGREGATE": {
-                        "type": "keyword",
-                        "ignore_above": 256
-                    },
-                    "STACK": {
-                        "type": "text",
-                        "analyzer": "general_analyzer"
-                    },
-                    "WORKFLOW_ACTION": {
-                        "type": "keyword",
-                        "ignore_above": 32
-                    },
-                    "WORKFLOW_NAME": {
-                        "type": "keyword",
-                        "ignore_above": 100
-                    }
-                }
-            },
+        "properties": {            
             "ENTITIES": {
                 "properties": {
                     "ENTITY_ID": {
@@ -137,22 +90,19 @@
                     },
                     "GRAMMAR_ID": {
                         "ignore_above": 1024,
+                        "null_value": "",
                         "type": "keyword"
                     },
                     "MATCHES": {
                         "properties": {
-                            "SCORE": {
-                                "type": "double"
-                            },
                             "VALUE": {
                                 "ignore_above": 1024,
                                 "type": "keyword"
+                            },
+                            "SCORE": {
+                                "type": "double"
                             }
                         }
-                    },
-                    "VALUES": {
-                        "ignore_above": 1024,
-                        "type": "keyword"
                     }
                 }
             },
@@ -185,7 +135,8 @@
                 }
             },
             "ID": {
-                "type": "long"
+                "type": "long",
+                "ignore_malformed": true
             },
             "TITLE": {
                 "type": "text",
@@ -209,33 +160,17 @@
             "LANGUAGE_CODES": {
                 "properties": {
                     "CODE": {
-                        "ignore_above": 10922,
-                        "store": true,
-                        "type": "keyword"
+                      "type": "keyword",
+                      "ignore_above": 10922
                     },
                     "CONFIDENCE": {
-                        "store": true,
-                        "type": "double"
-                    }
-                }
-            },
-            "TARGET_REFERENCES": {
-                "properties": {
-                    "TARGET_ID": {
-                        "type": "long"
-                    },
-                    "TARGET_REFERENCE": {
-                        "index": false,
-                        "type": "keyword"
-                    },
-                    "DESTINATION_ID": {
-                        "type": "long"
+                      "type": "double"
                     }
                 }
             }
         }
     },
     "index_patterns": [
-        "*_lang-*"
+        "*_blue-*"
     ]
 }
