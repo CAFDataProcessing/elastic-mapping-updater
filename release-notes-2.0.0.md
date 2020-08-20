@@ -10,6 +10,11 @@ ${version-number}
 
 - **SCMOD-10383**: Added options to provide a username and password for requests to Elasticsearch.
 
+#### Bug Fixes
+- **SCMOD-9892**: Updated to handle exceptions for indexes that do not match a template.
+
+- **SCMOD-10180**: Updated to ignore unsupported changes to subfields.
+
 #### Known Issues
 - None
 
