@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.IndexTemplateMetaData;
@@ -57,6 +58,8 @@ public final class ElasticMappingUpdater
 
     private static final Set<String> UNSUPPORTED_PARAMS = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList("doc_values", "store")));
+    private static final Set<String> MODIFIABLE_PROPERTIES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList("coerce", "dynamic", "ignore_above", "ignore_malformed", "search_analyzer")));
 
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
@@ -312,11 +315,20 @@ public final class ElasticMappingUpdater
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
             if (!entriesBeingRemoved.isEmpty()) {
                 entriesBeingRemoved.forEach(
-                    (key, value)
-                    -> LOGGER.warn(
-                        "Mapping changes with some parameters being removed may not be applied for : {} - current: {} target: {}",
-                        key, value.rightValue(), value.leftValue())
-                );
+                    (key, value) -> {
+                        LOGGER.warn(
+                                "Mapping changes with some parameters being removed may not be applied for : {} - current: {} target: {}",
+                                key, value.rightValue(), value.leftValue());
+                        //Find the properties removed in the update
+                        final Sets.SetView<?> elementsRemoved = Sets.difference(
+                                ((Map<?, ?>) (value.rightValue())).keySet(),
+                                ((Map<?, ?>) (value.leftValue())).keySet()
+                        );
+                        //If one of the removed properties is unmodifiable, disable this update.
+                        if (!MODIFIABLE_PROPERTIES.containsAll(elementsRemoved)) {
+                            allowedFieldDifferences.remove(key);
+                        }
+                    });
                 unsupportedObjectChanges = true;
             }
 

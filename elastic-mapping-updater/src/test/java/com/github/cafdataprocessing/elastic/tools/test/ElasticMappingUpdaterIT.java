@@ -582,6 +582,66 @@ public final class ElasticMappingUpdaterIT
         verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 2);
     }
 
+    @Test
+    public void testAttemptRemoveUnchangeableProperty() throws Exception
+    {
+        LOGGER.info("Running test 'testAttemptRemoveUnchangeableProperty'...");
+        final String templateName = "sample-template";
+        final String origTemplateSourceFile = "/template12.json";
+        final String updatedTemplateSourceFile = "/template13.json";
+        final String indexName = "test_blue-000001";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testAttemptRemoveUnchangeableProperty - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if (!putTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+        LOGGER.info("testAttemptRemoveUnchangeableProperty - Creating index matching template {}", templateName);
+        // Create an index with some data
+        IndexRequest request = new IndexRequest(indexName);
+        request.id("1");
+        request.routing("1");
+        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
+                + "'IS_HEAD_OF_FAMILY':true," + "'PROCESSING_TIME': 1610098464" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        final boolean needsRetries = indexDocumentWithRetry(request);
+        if (needsRetries) {
+            // Indexing has failed after multiple retries
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
+
+        LOGGER.info("testAttemptRemoveUnchangeableProperty - Updating template {}", templateName);
+        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
+        // Create a template
+        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
+        utrequest.source(updatedTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
+        if (!updateTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+
+        LOGGER.info("testAttemptRemoveUnchangeableProperty - Updating indexes matching template {}", templateName);
+        updateIndex("testAttemptRemoveUnchangeableProperty", templateName);
+
+        // Verify index mapping has new properties
+        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_PROCESSED");
+        assertTrue(propMapping.containsKey("format"));
+
+    }
+
     private void updateIndex(final String testName, final String templateName)
     {
         LOGGER.info("{}: {}", testName, templateName);
