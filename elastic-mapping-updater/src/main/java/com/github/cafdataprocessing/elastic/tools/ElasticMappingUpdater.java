@@ -319,10 +319,12 @@ public final class ElasticMappingUpdater
                         LOGGER.warn(
                                 "Mapping changes with some parameters being removed may not be applied for : {} - current: {} target: {}",
                                 key, value.rightValue(), value.leftValue());
+                        //Find the properties removed in the update
                         final Sets.SetView<?> elementsRemoved = Sets.difference(
                                 ((Map<?, ?>) (value.rightValue())).keySet(),
                                 ((Map<?, ?>) (value.leftValue())).keySet()
                         );
+                        //If one of the removed properties is unmodifiable, disable this update.
                         if (!MODIFIABLE_PROPERTIES.containsAll(elementsRemoved)) {
                             allowedFieldDifferences.remove(key);
                         }
