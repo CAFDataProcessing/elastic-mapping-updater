@@ -156,7 +156,8 @@
                         "store": true,
                         "type": "double"
                     }
-                }
+                },
+                "type": "nested"
             }
         }
     },

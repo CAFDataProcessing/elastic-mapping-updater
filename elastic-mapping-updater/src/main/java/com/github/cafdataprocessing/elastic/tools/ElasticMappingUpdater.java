@@ -28,7 +28,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.IndexTemplateMetaData;
@@ -56,10 +55,23 @@ public final class ElasticMappingUpdater
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
     private static final String MAPPING_TYPE_KEY = "type";
 
-    private static final Set<String> UNSUPPORTED_PARAMS = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList("doc_values", "store")));
     private static final Set<String> MODIFIABLE_PROPERTIES = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList("coerce", "dynamic", "ignore_above", "ignore_malformed", "search_analyzer")));
+            new HashSet<>(Arrays.asList(
+                    "boost",
+                    "coerce",
+                    "copy_to",
+                    "eager_global_ordinals",
+                    "fielddata",
+                    "fields",
+                    "ignore_above",
+                    "ignore_malformed",
+                    "index_options",
+                    "meta",
+                    "null_value",
+                    "position_increment_gap",
+                    "properties",
+                    "search_analyzer",
+                    "search_quote_analyzer")));
 
     private final ObjectMapper objectMapper;
     private final ElasticRequestHandler elasticRequestHandler;
@@ -256,7 +268,18 @@ public final class ElasticMappingUpdater
         entriesOnlyInIndex.entrySet().stream()
                 .filter(e -> isUnsupportedParam(e.getKey()))
                 .forEach(e -> {
-                        LOGGER.warn("Unsupported mapping change : field parameter being removed : {}:{}", e.getKey(), e.getValue());
+                        LOGGER.warn("Unsupported mapping change-field parameter being removed : {}:{}", e.getKey(), e.getValue());
+                        unsupportedParamChanges.add(e.getKey());
+                    }
+                );
+        final Set<String> existingFields = findexMapping.keySet();
+        final Map<String, Object> entriesOnlyInTemplate = diff.entriesOnlyOnLeft();
+        // Field parameters that are not currently set on a field in the index are now being added
+        entriesOnlyInTemplate.entrySet().stream()
+                .filter(e -> isExistingField(existingFields, getFullFieldName(e.getKey())))
+                .filter(e -> isUnsupportedParam(e.getKey()))
+                .forEach(e -> {
+                        LOGGER.warn("Unsupported mapping change-field parameter being added : {}", e.getKey());
                         unsupportedParamChanges.add(e.getKey());
                     }
                 );
@@ -268,20 +291,49 @@ public final class ElasticMappingUpdater
         return safeChangesOnly;
     }
 
+    private static boolean isExistingField(final Set<String> existingFields, final String key)
+    {
+        LOGGER.trace("Checking if {} is an existing field {}", key, existingFields);
+        return existingFields.stream().filter(e -> e.startsWith(key)).count() != 0;
+    }
+
     private static boolean isUnsupportedParam(final String fieldPath)
     {
         final String paramName = getParamName(fieldPath);
-        return UNSUPPORTED_PARAMS.contains(paramName);
+        LOGGER.trace("Checking if param {} is modifiable", paramName);
+        return !MODIFIABLE_PROPERTIES.contains(paramName);
     }
 
     private static String getFieldName(final String key)
     {
+        LOGGER.trace("Get field name for {}", key);
+        // for a field path like, /body_text/index_prefixes/min_chars, the 'fieldName' to be removed here is 'body_text'
+        // for a field path like, /session_id/doc_values, the 'fieldName' to be removed here is 'session_id'
         return key.split(Pattern.quote("/"))[1];
+    }
+
+    private static String getFullFieldName(final String key)
+    {
+        LOGGER.trace("Get full field name for {}", key);
+        final String[] path = key.split(Pattern.quote("/"));
+        if(key.contains(MAPPING_PROPS_KEY))
+        {
+            final String paramName = path[path.length - 1];
+            // nested field with simple param: returns '/manager/properties/name/' for key like '/manager/properties/name/type'
+            return key.replace(paramName, "");
+        }
+        // non-nested field with nested param: returns '/body_text' for key like '/body_text/index_prefixes/max_chars'
+        // non-nested field with simple param: returns '/manager' for key like '/manager/type'
+        return '/' + path[1];
     }
 
     private static String getParamName(final String key)
     {
+        LOGGER.trace("Get param name from {}", key);
         final String[] path = key.split(Pattern.quote("/"));
+        // simple param of nested field: returns 'ignore_malformed' for key like '/PROCESSING/properties/CODE/ignore_malformed'
+        // simple param of non-nested field: returns 'format' for key like '/PROCESSING_TIME/format'
+        // nested param of non-nested field: returns 'min_chars' for key like '/body_text/index_prefixes/min_chars'
         return path[path.length - 1];
     }
 
@@ -308,30 +360,6 @@ public final class ElasticMappingUpdater
                 || ((Map<?, ?>) (e.getValue().rightValue())).containsKey(MAPPING_TYPE_KEY)))
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 
-            // Check if any fields have parameters being removed that may not be reflected in the index mapping update
-            final Map<String, ValueDifference<Object>> entriesBeingRemoved = entriesDiffering.entrySet().stream()
-                .filter(e -> !typeDifferences.containsKey(e.getKey()))
-                .filter(e -> ((Map<?, ?>) (e.getValue().rightValue())).size() > ((Map<?, ?>) (e.getValue().leftValue())).size())
-                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
-            if (!entriesBeingRemoved.isEmpty()) {
-                entriesBeingRemoved.forEach(
-                    (key, value) -> {
-                        LOGGER.warn(
-                                "Mapping changes with some parameters being removed may not be applied for : {} - current: {} target: {}",
-                                key, value.rightValue(), value.leftValue());
-                        //Find the properties removed in the update
-                        final Sets.SetView<?> elementsRemoved = Sets.difference(
-                                ((Map<?, ?>) (value.rightValue())).keySet(),
-                                ((Map<?, ?>) (value.leftValue())).keySet()
-                        );
-                        //If one of the removed properties is unmodifiable, disable this update.
-                        if (!MODIFIABLE_PROPERTIES.containsAll(elementsRemoved)) {
-                            allowedFieldDifferences.remove(key);
-                        }
-                    });
-                unsupportedObjectChanges = true;
-            }
-
             if (!typeDifferences.isEmpty()) {
                 typeDifferences.forEach(
                     (key, value) -> {
@@ -349,7 +377,7 @@ public final class ElasticMappingUpdater
         }
 
         LOGGER.info("{}", allowedFieldDifferences.isEmpty()
-                    ? "No changes required to existing properties."
+                    ? "No other allowed changes required to existing properties."
                     : "Properties to be changed: " + allowedFieldDifferences);
         for (final String field : allowedFieldDifferences) {
             mappingsChanges.put(field, ((ValueDifference<?>) entriesDiffering.get(field)).leftValue());
@@ -360,7 +388,15 @@ public final class ElasticMappingUpdater
                 ? "No unsupported field changes."
                 : "Unsupported field changes that will not be included in the update: " + unSupportedFieldDifferences);
         for (final String field : unSupportedFieldDifferences) {
-            removeUnsupportedFieldChange(mappingsChanges, field);
+            if(field.contains(MAPPING_PROPS_KEY))
+            {
+                // nested field
+                removeUnsupportedFieldChange(mappingsChanges, field);
+            }
+            else
+            {
+                mappingsChanges.remove(getFieldName(field));
+            }
         }
 
         // Add new properties defined in the template

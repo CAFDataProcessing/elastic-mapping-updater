@@ -17,6 +17,7 @@ package com.github.cafdataprocessing.elastic.tools.test;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -99,6 +100,15 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("Running test 'testUpdateIndexesOfUpdatedTemplate'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template1.json";
+        /*
+         * Dynamic templates removed
+         * 'strict' mapping introduced
+         * New simple prop STACK added to prop FAILURES
+         * New object prop MATCH added to prop ENTITIES
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * New date prop DATE_DISPOSED added
+         */
         final String updatedTemplateSourceFile = "/template2.json";
         final String indexName = "foo-com_sample-000001";
 
@@ -144,9 +154,10 @@ public final class ElasticMappingUpdaterIT
         updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName);
 
         // Verify index mapping has new properties
-        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateIndexesOfUpdatedTemplate", indexName);
         @SuppressWarnings("unchecked")
         final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+        // Verify new prop DATE_DISPOSED was added
         @SuppressWarnings("unchecked")
         final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_DISPOSED");
         assertNotNull("testUpdateIndexesOfUpdatedTemplate", propMapping);
@@ -183,7 +194,18 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("Running test 'testUpdateUnsupportedChanges'...");
         final String templateName = "acme-sample-template";
         final String origTemplateSourceFile = "/template3.json";
-        // This template has modified "type" param for IS_HEAD_OF_FAMILY and FAILURES/AJP_JOB_RUN_ID
+        /*
+         * Dynamic templates removed
+         * 'strict' mapping introduced
+         * New simple prop STACK added to prop FAILURES
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * New date prop DATE_DISPOSED added
+         * This template has modified "type" param for IS_HEAD_OF_FAMILY and FAILURES/AJP_JOB_RUN_ID
+         * IS_HEAD_OF_FAMILY: "ignore_malformed" added
+         * FAILURES/AJP_JOB_RUN_ID: "ignore_above" removed and ignore_malformed added
+         * LANGUAGE_CODES: type set to nested (changed from object), "include_in_parent" added
+         */
         final String unsupportedTemplateSourceFile = "/template4.json";
         final String indexName = "test_acmesample-000001";
 
@@ -235,7 +257,7 @@ public final class ElasticMappingUpdaterIT
         updateIndex("testUpdateUnsupportedChanges", templateName);
 
         // Verify index mapping of unsupported field changes has not changed
-        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateUnsupportedChanges", indexName);
         @SuppressWarnings("unchecked")
         final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
         @SuppressWarnings("unchecked")
@@ -243,6 +265,32 @@ public final class ElasticMappingUpdaterIT
         final String propValue = (String) propMapping.get("type");
         // Verify property mapping value is same as before
         assertTrue("testUpdateUnsupportedChanges", propValue.equals("boolean"));
+        final Object propIgnoreMalformed = propMapping.get("ignore_malformed");
+        // Verify new param was not added
+        assertNull("testUpdateUnsupportedChanges", propIgnoreMalformed);
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Map<String, Object>> failuresPropMapping = (Map<String, Map<String, Object>>) props.get("FAILURES");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> jrIdPropMapping = (Map<String, Object>) failuresPropMapping.get("properties").get("AJP_JOB_RUN_ID");
+        // Verify type is same as before
+        final String jrIdTypeValue = (String) jrIdPropMapping.get("type");
+        assertTrue("testUpdateUnsupportedChanges", jrIdTypeValue.equals("keyword"));
+        // Verify param not removed
+        final Object propjrIdIgnoreAbove = jrIdPropMapping.get("ignore_above");
+        assertNotNull("testUpdateUnsupportedChanges", propjrIdIgnoreAbove);
+        // Verify param not added
+        final Object propjrIdIgnoreMalformed = jrIdPropMapping.get("ignore_malformed");
+        assertNull("testUpdateUnsupportedChanges", propjrIdIgnoreMalformed);
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> propLCMapping = (Map<String, Object>) props.get("LANGUAGE_CODES");
+        final Object propLCType = propLCMapping.get("type");
+        // Verify type not added
+        assertNull("testUpdateUnsupportedChanges", propLCType);
+        final Object propLCIncludeInParent = propLCMapping.get("include_in_parent");
+        // Verify new param was not added
+        assertNull("testUpdateUnsupportedChanges", propLCIncludeInParent);
 
         // Verify index mapping of allowed field changes has been updated
         @SuppressWarnings("unchecked")
@@ -258,9 +306,14 @@ public final class ElasticMappingUpdaterIT
     {
         LOGGER.info("Running test 'testUpdateDynamicTemplateOverwrite'...");
         final String templateName = "sample-template";
-        // This template has a dynamic_templaten called "EVERY_THING_ELSE_TEMPLATE"
+        // This template has a dynamic_template called "EVERY_THING_ELSE_TEMPLATE"
         final String origTemplateSourceFile = "/template5.json";
-        // This template has a dynamic_templaten called "LONG_TEMPLATE"
+        /* This template has a dynamic_template called "LONG_TEMPLATE"
+         * New simple prop STACK added to prop FAILURES
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * New date prop DATE_DISPOSED added
+         */
         final String updatedTemplateSourceFile = "/template6.json";
         final String indexName = "test_dynsample-000001";
 
@@ -310,7 +363,7 @@ public final class ElasticMappingUpdaterIT
         updateIndex("testUpdateDynamicTemplateOverwrite", templateName);
 
         // Verify updated index mapping has only one dynamic_template from the new index template
-        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateDynamicTemplateOverwrite", indexName);
         Object dynamicTemplatesInTemplate = indexTypeMappings.get("dynamic_templates");
         if (dynamicTemplatesInTemplate == null) {
             fail();
@@ -351,6 +404,9 @@ public final class ElasticMappingUpdaterIT
     {
         LOGGER.info("Running test 'testNoIndexesMatchingTemplate'...");
         final String templateName = ".kibana_task_manager";
+        /*
+         * This template has "index_patterns" that would not match any indexes
+         */
         final String origTemplateSourceFile = "/template7.json";
 
         final String origTemplateSource = readFile(origTemplateSourceFile);
@@ -376,6 +432,19 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("Running test 'testUpdateIndexesOfUnSupportedChangesInTemplate'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template8.json";
+        /*
+         * Dynamic templates removed
+         * 'strict' mapping introduced
+         * New simple prop STACK added to prop FAILURES
+         * New object prop MATCH added to prop ENTITIES
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * New date prop DATE_DISPOSED added
+         * ID: ignore_malformed removed
+         * LANGUAGE_CODES: type changed to object, i.e. "type" removed, "include_in_parent" removed
+         * New nested prop added to existing field TARGET_REFERENCES/DESTINATION_ID
+         * TARGET_REFERENCES/TARGET_REFERENCE ignore_above and doc_values removed
+         */
         final String updatedTemplateSourceFile = "/template9.json";
         final String indexName = "foo-com_lang-000001";
 
@@ -427,7 +496,7 @@ public final class ElasticMappingUpdaterIT
         updateIndex("testUpdateIndexesOfUnSupportedChangesInTemplate", templateName);
 
         // Verify index mapping has new properties
-        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateIndexesOfUnSupportedChangesInTemplate", indexName);
         @SuppressWarnings("unchecked")
         final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
         @SuppressWarnings("unchecked")
@@ -461,6 +530,9 @@ public final class ElasticMappingUpdaterIT
         // Verify unsupported change to nested property is not applied
         final Boolean propDocValuesValue = (Boolean) tRefMapping.get("doc_values");
         assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", propDocValuesValue);
+        // Verify change to nested property is not applied, param not removed
+        final Integer propIgnoreAboveValue = (Integer) tRefMapping.get("ignore_above");
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", 10922 == propIgnoreAboveValue);
         // Verify new nested property is added
         @SuppressWarnings("unchecked")
         final Map<String, Object> destMapping = (Map<String, Object>) targetRefProps.get("DESTINATION_ID");
@@ -499,8 +571,18 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("Running test 'testUpdateIndexesWithNestedFieldChanges'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template10.json";
-        // 'store' param removed from nested property LANGUAGE_CODES/CODE
-        // nested property type='nested' is removed
+        /*
+         * * Dynamic templates removed
+         * 'strict' mapping introduced
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * ENTITIES/GRAMMAR_ID null_value param added
+         * New date type prop DATE_DISPOSED added
+         * 'store' and ignore_above param removed from nested property LANGUAGE_CODES/CODE
+         * 'store' param removed from nested property LANGUAGE_CODES/CONFIDENCE
+         * nested property type='nested' is removed from LANGUAGE_CODES
+         * include_in_parent param removed from LANGUAGE_CODES
+         */
         final String updatedTemplateSourceFile = "/template11.json";
         final String indexName = "jan_blue-000001";
 
@@ -546,7 +628,7 @@ public final class ElasticMappingUpdaterIT
         updateIndex("testUpdateIndexesWithNestedFieldChanges", templateName);
 
         // Verify index mapping has new properties
-        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateIndexesWithNestedFieldChanges", indexName);
         @SuppressWarnings("unchecked")
         final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
         @SuppressWarnings("unchecked")
@@ -555,6 +637,42 @@ public final class ElasticMappingUpdaterIT
         @SuppressWarnings("unchecked")
         final Map<String, Object> entPropMapping = (Map<String, Object>) props.get("ENTITIES");
         LOGGER.info("entitiesPropMapping {} ", entPropMapping);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> entitiesProps = (Map<String, Object>) entPropMapping.get("properties");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> gidMapping = (Map<String, Object>) entitiesProps.get("GRAMMAR_ID");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", gidMapping);
+        // Verify change to nested property is applied, param added (allowed change)
+        final Object gidProp1 = gidMapping.get("null_value");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", gidProp1);
+
+        // Verify index mapping of unsupported field changes to nested property has not changed
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> langPropMapping = (Map<String, Object>) props.get("LANGUAGE_CODES");
+        final String propValue = (String) langPropMapping.get("type");
+        // Verify property mapping type and params are same as before
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", propValue.equals("nested"));
+        final Boolean propValue2 = (Boolean) langPropMapping.get("include_in_parent");
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", propValue2);
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> langProps = (Map<String, Object>) langPropMapping.get("properties");
+        // Verify new property is added
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> codeMapping = (Map<String, Object>) langProps.get("CODE");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", codeMapping);
+        // Verify unsupported change to nested property is not applied, param not removed
+        final Object prop1 = codeMapping.get("store");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", prop1);
+        // Verify change to nested property is not applied, param not removed
+        final Object prop2 = codeMapping.get("ignore_above");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", prop2);
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> confidenceMapping = (Map<String, Object>) langProps.get("CONFIDENCE");
+        // Verify unsupported change to nested property is not applied, param not removed
+        final Object confidenceProp1 = confidenceMapping.get("store");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", confidenceProp1);
 
         // Index more data
         request = new IndexRequest(indexName);
@@ -588,6 +706,14 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("Running test 'testAttemptRemoveUnchangeableProperty'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template12.json";
+        /*
+         * PROCESSING_TIME: format param removed
+         * ADD_PROCESSING_TIME: format param added
+         * nested field PROCESSING/ID: null_value param removed
+         * nested field PROCESSING/P_TIME: format param removed
+         * nested field PROCESSING/REF: ignore_malformed param removed
+         * nested field PROCESSING/CODE: ignore_malformed param added
+         */
         final String updatedTemplateSourceFile = "/template13.json";
         final String indexName = "test_blue-000001";
 
@@ -633,12 +759,377 @@ public final class ElasticMappingUpdaterIT
         updateIndex("testAttemptRemoveUnchangeableProperty", templateName);
 
         // Verify index mapping has new properties
-        final Map<String, Object> indexTypeMappings = getIndexMapping(indexName);
+        final Map<String, Object> indexTypeMappings = getIndexMapping("testAttemptRemoveUnchangeableProperty", indexName);
         @SuppressWarnings("unchecked")
         final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
         @SuppressWarnings("unchecked")
-        final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_PROCESSED");
+        final Map<String, Object> propMapping = (Map<String, Object>) props.get("PROCESSING_TIME");
+        // Verify param not removed (unsupported change)
         assertTrue(propMapping.containsKey("format"));
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop2Mapping = (Map<String, Object>) props.get("ADD_PROCESSING_TIME");
+        // Verify param not added (unsupported change)
+        assertFalse(prop2Mapping.containsKey("format"));
+
+        // Verify index mapping of unsupported field changes has been updated with allowed changes
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> processingPropMapping = (Map<String, Object>) props.get("PROCESSING");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> processingProps = (Map<String, Object>) processingPropMapping.get("properties");
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> propIdMapping = (Map<String, Object>) processingProps.get("ID");
+        // Verify param removed (allowed change)
+        assertFalse(propIdMapping.containsKey("null_value"));
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> pTimeMapping = (Map<String, Object>) processingProps.get("P_TIME");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", pTimeMapping);
+        // Verify unsupported change to nested property is not applied, param not removed
+        final Object propFormatValue = pTimeMapping.get("format");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", propFormatValue);
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> refMapping = (Map<String, Object>) processingProps.get("REF");
+        // Verify change to nested property is not applied, param not removed
+        final Object propIgnoreMalformed = refMapping.get("ignore_malformed");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", propIgnoreMalformed);
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> codeMapping = (Map<String, Object>) processingProps.get("CODE");
+        // Verify change to nested property is applied, param added
+        final Boolean propIgnoreMalformed2 = (Boolean) codeMapping.get("ignore_malformed");
+        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", propIgnoreMalformed2);
+
+    }
+
+    @Test
+    public void testRemoveParams() throws Exception
+    {
+        LOGGER.info("Running test 'testRemoveParams'...");
+        final String templateName = "prop-rem-template";
+        final String origTemplateSourceFile = "/template14.json";
+        final String updatedTemplateSourceFile = "/template15.json";
+        final String indexName = "test_violet-000001";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testRemoveParams - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if (!putTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+        LOGGER.info("testRemoveParams - Creating index matching template {}", templateName);
+        // Create an index with some data
+        IndexRequest request = new IndexRequest(indexName);
+        request.id("1");
+        request.routing("1");
+        String jsonString = "{" + "'message':'doc1'," + "'status_code\":'complete'," + "'session_id':'44gdfg67',"
+                + "'textdata1':'some text data'," + "'number_two': 16100" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        final boolean needsRetries = indexDocumentWithRetry(request);
+        if (needsRetries) {
+            // Indexing has failed after multiple retries
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
+
+        LOGGER.info("testRemoveParams - Updating template {}", templateName);
+        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
+        // Create a template
+        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
+        utrequest.source(updatedTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
+        if (!updateTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+
+        LOGGER.info("testRemoveParams - Updating indexes matching template {}", templateName);
+        updateIndex("testRemoveParams", templateName);
+
+        final Map<String, Object> indexTypeMappings = getIndexMapping("testRemoveParams", indexName);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+
+        // Verify params are not removed even though removal is allowed
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop10Mapping = (Map<String, Object>) props.get("title_y");
+        assertFalse(prop10Mapping.containsKey("boost")); // has been removed
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop1Mapping = (Map<String, Object>) props.get("number_two");
+        assertTrue(prop1Mapping.containsKey("coerce"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop16Mapping = (Map<String, Object>) props.get("first_name");
+        assertTrue(prop16Mapping.containsKey("copy_to"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop17Mapping = (Map<String, Object>) props.get("tags");
+        assertFalse(prop17Mapping.containsKey("eager_global_ordinals")); // has been removed
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop18Mapping = (Map<String, Object>) props.get("titlew");
+        assertFalse(prop18Mapping.containsKey("fielddata")); // has been removed
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop19Mapping = (Map<String, Object>) props.get("city");
+        assertTrue(prop19Mapping.containsKey("fields"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop3Mapping = (Map<String, Object>) props.get("message");
+        assertFalse(prop3Mapping.containsKey("ignore_above")); // has been removed
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop4Mapping = (Map<String, Object>) props.get("number_one");
+        assertTrue(prop4Mapping.containsKey("ignore_malformed"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop20Mapping = (Map<String, Object>) props.get("dummy_message2");
+        assertFalse(prop20Mapping.containsKey("index_options")); // has been removed
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop24Mapping = (Map<String, Object>) props.get("latency");
+        assertTrue(prop24Mapping.containsKey("meta"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop5Mapping = (Map<String, Object>) props.get("status_code");
+        assertFalse(prop5Mapping.containsKey("null_value")); // has been removed
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop27Mapping = (Map<String, Object>) props.get("names2");
+        assertTrue(prop27Mapping.containsKey("position_increment_gap"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop28Mapping = (Map<String, Object>) props.get("manager");
+        assertTrue(prop28Mapping.containsKey("properties"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop6Mapping = (Map<String, Object>) props.get("title_z");
+        assertTrue(prop6Mapping.containsKey("search_analyzer"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop7Mapping = (Map<String, Object>) props.get("title_m");
+        assertTrue(prop7Mapping.containsKey("search_quote_analyzer"));
+
+        // Verify params not removed for those that are not allowed
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop8Mapping = (Map<String, Object>) props.get("session_id");
+        assertTrue(prop8Mapping.containsKey("doc_values"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop9Mapping = (Map<String, Object>) props.get("some_content");
+        assertTrue(prop9Mapping.containsKey("store"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop11Mapping = (Map<String, Object>) props.get("session_data");
+        assertTrue(prop11Mapping.containsKey("enabled"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop12Mapping = (Map<String, Object>) props.get("date");
+        assertTrue(prop12Mapping.containsKey("format"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop13Mapping = (Map<String, Object>) props.get("boolean_sim_field");
+        assertTrue(prop13Mapping.containsKey("similarity"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop14Mapping = (Map<String, Object>) props.get("some_content2");
+        assertTrue(prop14Mapping.containsKey("term_vector"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop15Mapping = (Map<String, Object>) props.get("title_m");
+        assertTrue(prop15Mapping.containsKey("analyzer"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop21Mapping = (Map<String, Object>) props.get("textdata1");
+        assertTrue(prop21Mapping.containsKey("index_phrases"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop22Mapping = (Map<String, Object>) props.get("body_text");
+        assertTrue(prop22Mapping.containsKey("index_prefixes"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop23Mapping = (Map<String, Object>) props.get("dummy_message");
+        assertTrue(prop23Mapping.containsKey("index"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop25Mapping = (Map<String, Object>) props.get("foo");
+        assertTrue(prop25Mapping.containsKey("normalizer"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop26Mapping = (Map<String, Object>) props.get("titlex");
+        assertTrue(prop26Mapping.containsKey("norms"));
+
+    }
+
+    @Test
+    public void testAddParams() throws Exception
+    {
+        LOGGER.info("Running test 'testAddParams'...");
+        final String templateName = "prop-add-template";
+        final String origTemplateSourceFile = "/template16.json";
+        final String updatedTemplateSourceFile = "/template17.json";
+        final String indexName = "test_pink-000001";
+
+        final String origTemplateSource = readFile(origTemplateSourceFile);
+        LOGGER.info("testAddParams - Creating initial template {}", templateName);
+
+        // Create a template
+        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest(templateName);
+        trequest.source(origTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse putTemplateResponse = client.indices().putTemplate(trequest, RequestOptions.DEFAULT);
+        if (!putTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+        LOGGER.info("testAddParams - Creating index matching template {}", templateName);
+        // Create an index with some data
+        IndexRequest request = new IndexRequest(indexName);
+        request.id("1");
+        request.routing("1");
+        String jsonString = "{" + "'message':'doc1'," + "'status_code\":'complete'," + "'session_id':'44gdfg67',"
+                + "'textdata1':'some text data'," + "'number_two': 16100" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        request.source(jsonString, XContentType.JSON);
+        request.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        final boolean needsRetries = indexDocumentWithRetry(request);
+        if (needsRetries) {
+            // Indexing has failed after multiple retries
+            fail();
+        }
+
+        verifyIndexData(indexName, QueryBuilders.matchAllQuery(), 1);
+
+        LOGGER.info("testAddParams - Updating template {}", templateName);
+        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
+        // Create a template
+        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest(templateName);
+        utrequest.source(updatedTemplateSource, XContentType.JSON);
+        final AcknowledgedResponse updateTemplateResponse = client.indices().putTemplate(utrequest, RequestOptions.DEFAULT);
+        if (!updateTemplateResponse.isAcknowledged()) {
+            fail();
+        }
+
+        LOGGER.info("testAddParams - Updating indexes matching template {}", templateName);
+        updateIndex("testAddParams", templateName);
+
+        final Map<String, Object> indexTypeMappings = getIndexMapping("testAddParams", indexName);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
+
+        // Verify params are added when addition is allowed
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop10Mapping = (Map<String, Object>) props.get("title_y");
+        assertTrue(prop10Mapping.containsKey("boost"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop1Mapping = (Map<String, Object>) props.get("number_two");
+        assertTrue(prop1Mapping.containsKey("coerce"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop16Mapping = (Map<String, Object>) props.get("first_name");
+        assertTrue(prop16Mapping.containsKey("copy_to"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop17Mapping = (Map<String, Object>) props.get("tags");
+        assertTrue(prop17Mapping.containsKey("eager_global_ordinals"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop18Mapping = (Map<String, Object>) props.get("titlew");
+        assertTrue(prop18Mapping.containsKey("fielddata"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop19Mapping = (Map<String, Object>) props.get("city");
+        assertFalse(prop19Mapping.containsKey("fields")); // has not been added
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop3Mapping = (Map<String, Object>) props.get("message");
+        assertTrue(prop3Mapping.containsKey("ignore_above"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop4Mapping = (Map<String, Object>) props.get("number_one");
+        assertTrue(prop4Mapping.containsKey("ignore_malformed"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop20Mapping = (Map<String, Object>) props.get("dummy_message2");
+        assertTrue(prop20Mapping.containsKey("index_options"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop24Mapping = (Map<String, Object>) props.get("latency");
+        assertFalse(prop24Mapping.containsKey("meta")); // has not been added
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop5Mapping = (Map<String, Object>) props.get("status_code");
+        assertTrue(prop5Mapping.containsKey("null_value"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop27Mapping = (Map<String, Object>) props.get("names2");
+        assertFalse(prop27Mapping.containsKey("position_increment_gap")); // has not been added
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop28Mapping = (Map<String, Object>) props.get("manager");
+        assertFalse(prop28Mapping.containsKey("properties")); // has not been added
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop6Mapping = (Map<String, Object>) props.get("title_z");
+        assertTrue(prop6Mapping.containsKey("search_analyzer"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop7Mapping = (Map<String, Object>) props.get("title_m");
+        assertFalse(prop7Mapping.containsKey("search_quote_analyzer")); // has not been added
+
+        // Verify params not added for those that are not allowed
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop8Mapping = (Map<String, Object>) props.get("session_id");
+        assertFalse(prop8Mapping.containsKey("doc_values"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop9Mapping = (Map<String, Object>) props.get("some_content");
+        assertFalse(prop9Mapping.containsKey("store"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop11Mapping = (Map<String, Object>) props.get("session_data");
+        assertFalse(prop11Mapping.containsKey("enabled"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop12Mapping = (Map<String, Object>) props.get("date");
+        assertFalse(prop12Mapping.containsKey("format"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop13Mapping = (Map<String, Object>) props.get("boolean_sim_field");
+        assertFalse(prop13Mapping.containsKey("similarity"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop14Mapping = (Map<String, Object>) props.get("some_content2");
+        assertFalse(prop14Mapping.containsKey("term_vector"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop15Mapping = (Map<String, Object>) props.get("title_m");
+        assertFalse(prop15Mapping.containsKey("analyzer"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop21Mapping = (Map<String, Object>) props.get("textdata1");
+        assertFalse(prop21Mapping.containsKey("index_phrases"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop22Mapping = (Map<String, Object>) props.get("body_text");
+        assertFalse(prop22Mapping.containsKey("index_prefixes"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop23Mapping = (Map<String, Object>) props.get("dummy_message");
+        assertFalse(prop23Mapping.containsKey("index"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop25Mapping = (Map<String, Object>) props.get("foo");
+        assertFalse(prop25Mapping.containsKey("normalizer"));
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> prop26Mapping = (Map<String, Object>) props.get("titlex");
+        assertFalse(prop26Mapping.containsKey("norms"));
 
     }
 
@@ -701,9 +1192,9 @@ public final class ElasticMappingUpdaterIT
         }
     }
 
-    private Map<String, Object> getIndexMapping(final String indexName) throws IOException, GetIndexException
+    private Map<String, Object> getIndexMapping(final String testName, final String indexName) throws IOException, GetIndexException
     {
-        LOGGER.info("Get index {}", indexName);
+        LOGGER.info("{} - Get index {}", testName, indexName);
         final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
         final Response response = client.getLowLevelClient().performRequest(request);
 
@@ -715,7 +1206,7 @@ public final class ElasticMappingUpdaterIT
                 final GetIndexResponse getIndexResponse = GetIndexResponse.fromXContent(parser);
                 final MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
                 final Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
-                LOGGER.info("------Updated mapping for index '{}': {}", indexName, indexTypeMappings);
+                LOGGER.info("{}------Updated mapping for index '{}': {}", testName, indexName, indexTypeMappings);
                 return indexTypeMappings;
             }
         } else {

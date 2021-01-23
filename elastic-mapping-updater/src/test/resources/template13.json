@@ -85,6 +85,10 @@
             "PROCESSING_TIME": {
                 "type": "date"
             },
+            "ADD_PROCESSING_TIME": {
+                "type": "date",
+                "format": "epoch_second"
+            },
             "ID": {
                 "type": "long",
                 "ignore_malformed": true
@@ -107,6 +111,24 @@
             "DATE_DISPOSED": {
                 "type": "date",
                 "format": "strict_date_optional_time||epoch_second"
+            },
+            "PROCESSING": {
+                "properties": {
+                    "ID": {
+                        "type": "keyword",
+                        "ignore_above": 10922
+                    },
+                    "P_TIME": {
+                        "type": "date"
+                    },
+                    "REF": {
+                        "type": "integer"
+                    },
+                    "CODE": {
+                        "type": "integer",
+                        "ignore_malformed": false
+                    }
+                }
             },
             "LANGUAGE_CODES": {
                 "properties": {
