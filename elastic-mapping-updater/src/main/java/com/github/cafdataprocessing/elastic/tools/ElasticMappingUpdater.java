@@ -422,7 +422,7 @@ public final class ElasticMappingUpdater
         final List<String> path = Arrays.asList(StringUtils.split(fieldPath.trim(), "/"));
         final int size = path.size();
         int index = 0;
-        if(size <= 2)
+        if(size == 2)
         {
             // for a field path like, /LANGUAGE_CODES/properties/CODE/type, the 'fieldName' to be removed here is 'CODE'
             // remove property with unsupported mapping change
