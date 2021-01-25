@@ -1,0 +1,165 @@
+{
+    "settings": {
+        "index": {
+            "number_of_shards": 5,
+            "number_of_replicas": 0,
+            "codec": "best_compression",
+            "refresh_interval": "1s",
+            "max_result_window": "1000000",
+            "merge.scheduler.max_thread_count": 1
+        },
+        "analysis": {
+            "char_filter": {
+                "html_strip_filter": {
+                    "type": "html_strip"
+                }
+            },
+            "filter": {
+                "million_token_limit": {
+                    "type": "limit",
+                    "max_token_count": 1000000
+                },
+                "period_break_filter": {
+                    "type": "pattern_capture",
+                    "preserve_original": false,
+                    "patterns": [
+                        "^([\\\\p{Nd},\\\\.'?]+)$|([^\\\\.']+)"
+                    ]
+                },
+                "max_token_length_filter": {
+                    "type": "length",
+                    "max": 10922
+                },
+                "english_stop": {
+                    "type": "stop",
+                    "stopwords": "_english_"
+                }
+            },
+            "analyzer": {
+                "general_analyzer": {
+                    "type": "custom",
+                    "filter": [
+                        "million_token_limit",
+                        "max_token_length_filter",
+                        "icu_normalizer"
+                    ],
+                    "char_filter": [ ],
+                    "tokenizer": "icu_tokenizer"
+                },
+                "path_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "path_analyzer",
+                    "filter": [
+                        "max_token_length_filter",
+                        "icu_normalizer"
+                    ]
+                },
+                "version_analyzer": {
+                    "type": "pattern",
+                    "pattern": "\\\\s+"
+                },
+                "standard_max_term_100": {
+                    "type": "standard",
+                    "stopwords": "_english_",
+                    "max_token_length": 100
+                },
+                "my_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": [
+                        "lowercase"
+                    ]
+                },
+                "my_stop_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": [
+                        "lowercase",
+                        "english_stop"
+                    ]
+                }
+            },
+            "normalizer": {
+                "keyword_normalizer": {
+                    "type": "custom",
+                    "filter": [
+                        "icu_normalizer"
+                    ]
+                },
+                "my_normalizer": {
+                    "type": "custom",
+                    "char_filter": [ ],
+                    "filter": [
+                        "lowercase",
+                        "asciifolding"
+                    ]
+                }
+            },
+            "tokenizer": {
+                "path_analyzer": {
+                    "type": "path_hierarchy",
+                    "delimiter": "/"
+                }
+            }
+        }
+    },
+    "mappings": {
+        "_routing": {
+            "required": true
+        },
+        "dynamic": "strict",
+        "properties": {
+            "some_content2": {
+                "type": "text"
+            },
+			"PROCESSING": {
+                "properties": {
+                    "ID": {
+                        "type": "keyword",
+                        "ignore_above": 10922,
+                        "null_value": ""
+                    },
+                    "OTHER_PROPS": {
+					    "properties": {
+							"REF": {
+								"type": "integer",
+								"ignore_malformed": false
+							},
+							"BODY_TEXT": {
+								"type": "text",
+								"index_prefixes": {
+									"min_chars": 1,
+									"max_chars": 10
+								}
+							},
+							"status_code": {
+								"type": "keyword"
+							},
+							"some_date": {
+							    "type": "date"
+							}
+						}
+                    }                    
+                }
+            },
+            "LANGUAGE_CODES": {
+                "properties": {
+                    "CODE": {
+                        "type": "keyword",
+                        "ignore_above": 10922
+                    },
+                    "CONFIDENCE": {
+                        "type": "keyword",
+						"normalizer": "my_normalizer"
+                    },
+					"textdata1": {
+						"type": "text"
+					}
+                }
+            }
+        }
+    },
+    "index_patterns": [
+        "*_green-*"
+    ]
+}

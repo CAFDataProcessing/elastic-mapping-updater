@@ -434,11 +434,21 @@ public final class ElasticMappingUpdater
             while (index != size - 2) {
                 final int i = index++;
                 final String currentFieldName = path.get(i);
-                final Object field = mappingsChanges.get(path.get(i));
-                if (field instanceof Map<?, ?>) {
-                    final Map<String, Object> currentField = (Map<String, Object>) field;
-                    final String subPath = fieldPath.substring(fieldPath.indexOf(currentFieldName) + currentFieldName.length());
-                    removeUnsupportedFieldChange(currentField, subPath);
+                if(!path.contains(MAPPING_PROPS_KEY))
+                {
+                    // for a field with a param that has nested params like, BODY_TEXT/index_prefixes/max_chars
+                    // the 'currentFieldName' which is 'BODY_TEXT' has to be removed
+                    mappingsChanges.remove(currentFieldName);
+                    break;
+                }
+                else
+                {
+                    final Object field = mappingsChanges.get(path.get(i));
+                    if (field instanceof Map<?, ?>) {
+                        final Map<String, Object> currentField = (Map<String, Object>) field;
+                        final String subPath = fieldPath.substring(fieldPath.indexOf(currentFieldName) + currentFieldName.length());
+                        removeUnsupportedFieldChange(currentField, subPath);
+                    }
                 }
             }
         }
