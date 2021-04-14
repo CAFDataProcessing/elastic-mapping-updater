@@ -65,10 +65,7 @@ public final class ElasticMappingUpdater
                     "fields",
                     "ignore_above",
                     "ignore_malformed",
-                    "index_options",
                     "meta",
-                    "null_value",
-                    "position_increment_gap",
                     "properties",
                     "search_analyzer",
                     "search_quote_analyzer")));
