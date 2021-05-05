@@ -43,7 +43,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.PutIndexTemplateRequest;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -1312,7 +1312,7 @@ public final class ElasticMappingUpdaterIT
                  final XContentParser parser
                  = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
                 final GetIndexResponse getIndexResponse = GetIndexResponse.fromXContent(parser);
-                final MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
+                final MappingMetadata indexMappings = getIndexResponse.getMappings().get(indexName);
                 final Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
                 LOGGER.info("{}------Updated mapping for index '{}': {}", testName, indexName, indexTypeMappings);
                 return indexTypeMappings;

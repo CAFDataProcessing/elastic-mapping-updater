@@ -33,7 +33,7 @@ import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.client.indices.GetIndexTemplatesResponse;
-import org.elasticsearch.client.indices.IndexTemplateMetaData;
+import org.elasticsearch.client.indices.IndexTemplateMetadata;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -60,7 +60,7 @@ final class ElasticRequestHandler
         this.elasticClient = ElasticProvider.getClient(schemaUpdaterConfig.getElasticSettings());
     }
 
-    List<IndexTemplateMetaData> getTemplates()
+    List<IndexTemplateMetadata> getTemplates()
         throws IOException, GetTemplatesException
     {
         LOGGER.debug("Getting templates...");
@@ -73,7 +73,7 @@ final class ElasticRequestHandler
                  final XContentParser parser
                  = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
                 final GetIndexTemplatesResponse getTemplatesResponse = GetIndexTemplatesResponse.fromXContent(parser);
-                final List<IndexTemplateMetaData> templates = getTemplatesResponse.getIndexTemplates();
+                final List<IndexTemplateMetadata> templates = getTemplatesResponse.getIndexTemplates();
                 return templates;
             }
         } else {

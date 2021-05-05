@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.client.indices.GetIndexResponse;
-import org.elasticsearch.client.indices.IndexTemplateMetaData;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.client.indices.IndexTemplateMetadata;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,15 +135,15 @@ public final class ElasticMappingUpdater
     private void updateIndexes()
         throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
     {
-        final List<IndexTemplateMetaData> templates = elasticRequestHandler.getTemplates();
+        final List<IndexTemplateMetadata> templates = elasticRequestHandler.getTemplates();
         LOGGER.info("Templates found in Elasticsearch: {}",
                     templates.stream().map(template -> template.name()).collect(Collectors.toList()));
-        for (final IndexTemplateMetaData template : templates) {
+        for (final IndexTemplateMetadata template : templates) {
             updateIndexesForTemplate(template);
         }
     }
 
-    private void updateIndexesForTemplate(final IndexTemplateMetaData template)
+    private void updateIndexesForTemplate(final IndexTemplateMetadata template)
         throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
     {
         final String templateName = template.name();
@@ -151,7 +151,7 @@ public final class ElasticMappingUpdater
 
         final List<String> patterns = template.patterns();
 
-        final MappingMetaData mapping = template.mappings();
+        final MappingMetadata mapping = template.mappings();
         if (mapping == null) {
             LOGGER.info("No mappings in template '{}'. Indexes for this template will not be updated.", templateName);
             return;
@@ -168,7 +168,7 @@ public final class ElasticMappingUpdater
         LOGGER.info("Found {} index(es) that match template '{}'", indexes.size(), templateName);
         for (final String indexName : indexes) {
             GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
-            MappingMetaData indexMappings = getIndexResponse.getMappings().get(indexName);
+            MappingMetadata indexMappings = getIndexResponse.getMappings().get(indexName);
             Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
 
             LOGGER.info("Comparing index mapping for '{}'", indexName);
