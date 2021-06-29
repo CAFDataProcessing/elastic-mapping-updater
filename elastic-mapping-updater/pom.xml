@@ -175,7 +175,7 @@
                     <images>
                         <!-- Elasticsearch image -->
                         <image>
-                            <name>${dockerHubPublic}/cafapi/opensuse-elasticsearch7:3</name>
+                            <name>${dockerHubPublic}/cafapi/prereleases:opensuse-elasticsearch7-3.5.0-SNAPSHOT</name>
                             <alias>elasticsearch</alias>
                             <run>
                                 <env>
