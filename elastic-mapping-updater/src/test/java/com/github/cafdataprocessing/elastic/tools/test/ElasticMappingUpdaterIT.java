@@ -30,6 +30,7 @@ import java.util.Map;
 
 import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
+import org.opensearch.OpenSearchException;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.search.SearchRequest;
@@ -67,7 +68,6 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import org.apache.http.conn.ConnectTimeoutException;
-import org.opensearch.OpenSearchException;
 
 public final class ElasticMappingUpdaterIT
 {

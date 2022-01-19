@@ -360,11 +360,6 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>org.opensearch.client</groupId>
-                <artifactId>opensearch-java</artifactId>
-                <version>0.1.0</version>
-            </dependency>
-            <dependency>
                 <groupId>org.opensearch</groupId>
                 <artifactId>opensearch-x-content</artifactId>
                 <version>1.2.3</version>
