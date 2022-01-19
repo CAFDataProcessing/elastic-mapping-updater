@@ -30,29 +30,29 @@ import java.util.Map;
 
 import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.client.Request;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.Response;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.indices.GetIndexResponse;
-import org.elasticsearch.client.indices.PutIndexTemplateRequest;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.opensearch.OpenSearchException;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.client.Request;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.Response;
+import org.opensearch.client.RestClient;
+import org.opensearch.client.RestHighLevelClient;
+import org.opensearch.action.support.WriteRequest.RefreshPolicy;
+import org.opensearch.action.support.master.AcknowledgedResponse;
+import org.opensearch.client.indices.GetIndexResponse;
+import org.opensearch.client.indices.PutIndexTemplateRequest;
+import org.opensearch.cluster.metadata.MappingMetadata;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.common.xcontent.XContentFactory;
+import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.index.query.QueryBuilder;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.rest.RestStatus;
+import org.opensearch.search.SearchHit;
+import org.opensearch.search.builder.SearchSourceBuilder;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,7 +181,7 @@ public final class ElasticMappingUpdaterIT
         try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final OpenSearchException e) {
             fail();
         }
 
@@ -558,7 +558,7 @@ public final class ElasticMappingUpdaterIT
         try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final OpenSearchException e) {
             fail();
         }
 
@@ -693,7 +693,7 @@ public final class ElasticMappingUpdaterIT
         try {
             final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
             assertTrue(response.status() == RestStatus.CREATED);
-        } catch (final ElasticsearchException e) {
+        } catch (final OpenSearchException e) {
             fail();
         }
 
@@ -1287,7 +1287,7 @@ public final class ElasticMappingUpdaterIT
         searchSourceBuilder.trackTotalHits(true);
         searchSourceBuilder.query(query);
         searchRequest.source(searchSourceBuilder);
-        org.elasticsearch.action.search.SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+        org.opensearch.action.search.SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
         final long totalDocs = searchResponse.getHits().getTotalHits().value;
         LOGGER.info("Hits : {}", totalDocs);
         LOGGER.info(searchResponse.toString());
