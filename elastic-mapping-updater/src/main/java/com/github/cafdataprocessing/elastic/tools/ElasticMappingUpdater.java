@@ -29,9 +29,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.elasticsearch.client.indices.GetIndexResponse;
-import org.elasticsearch.client.indices.IndexTemplateMetadata;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
+import org.opensearch.client.indices.GetIndexResponse;
+import org.opensearch.client.indices.IndexTemplateMetadata;
+import org.opensearch.cluster.metadata.MappingMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
