@@ -31,13 +31,6 @@ import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
 import org.opensearch.client.RestClient;
-import org.opensearch.client.indices.GetIndexResponse;
-import org.opensearch.client.indices.GetIndexTemplatesResponse;
-import org.opensearch.client.indices.IndexTemplateMetadata;
-import org.opensearch.common.xcontent.NamedXContentRegistry;
-import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentParser;
-import org.opensearch.common.xcontent.XContentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +40,13 @@ import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplatesException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
+
+import jakarta.json.Json;
+import jakarta.json.stream.JsonParser;
+import org.opensearch.client.json.jackson.JacksonJsonpMapper;
+import org.opensearch.client.opensearch.indices.GetIndexResponse;
+import org.opensearch.client.opensearch.indices.GetIndexTemplateResponse;
+import org.opensearch.client.opensearch.indices.get_index_template.IndexTemplateItem;
 
 final class ElasticRequestHandler
 {
@@ -60,7 +60,7 @@ final class ElasticRequestHandler
         this.elasticClient = ElasticProvider.getClient(schemaUpdaterConfig.getElasticSettings());
     }
 
-    List<IndexTemplateMetadata> getTemplates()
+    List<IndexTemplateItem> getTemplates()
         throws IOException, GetTemplatesException
     {
         LOGGER.debug("Getting templates...");
@@ -70,11 +70,13 @@ final class ElasticRequestHandler
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200) {
             try (final InputStream resultJsonStream = response.getEntity().getContent();
-                 final XContentParser parser
-                 = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
-                final GetIndexTemplatesResponse getTemplatesResponse = GetIndexTemplatesResponse.fromXContent(parser);
-                final List<IndexTemplateMetadata> templates = getTemplatesResponse.getIndexTemplates();
-                return templates;
+                 final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
+                
+                final GetIndexTemplateResponse getTemplatesResponse = 
+                    GetIndexTemplateResponse._DESERIALIZER.deserialize(jsonValueParser, new JacksonJsonpMapper());
+                
+                final List<IndexTemplateItem> indexTemplates = getTemplatesResponse.indexTemplates();
+                return indexTemplates;
             }
         } else {
             throw new GetTemplatesException(String.format("Error getting templates. Status code: %s, response: %s",
@@ -119,9 +121,8 @@ final class ElasticRequestHandler
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200) {
             try (final InputStream resultJsonStream = response.getEntity().getContent();
-                 final XContentParser parser
-                 = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY, null, resultJsonStream)) {
-                return GetIndexResponse.fromXContent(parser);
+                 final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
+                return GetIndexResponse._DESERIALIZER.deserialize(jsonValueParser, new JacksonJsonpMapper());
             }
         } else {
             throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
