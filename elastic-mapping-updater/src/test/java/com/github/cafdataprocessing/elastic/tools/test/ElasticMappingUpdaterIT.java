@@ -47,11 +47,13 @@ import jakarta.json.Json;
 import jakarta.json.stream.JsonGenerator;
 import jakarta.json.stream.JsonParser;
 import java.io.ByteArrayInputStream;
+import java.io.StringReader;
 import java.net.ConnectException;
 import java.net.HttpRetryException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.opensearch.client.json.JsonData;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
@@ -120,11 +122,14 @@ public final class ElasticMappingUpdaterIT
         final String indexName = "foo-com_sample-000001";
 
         final String origTemplateSource = readFile(origTemplateSourceFile);
-        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Creating initial template {}", templateName);
 
+//        JacksonJsonpMapper mapper = new JacksonJsonpMapper(new com.fasterxml.jackson.databind.json.JsonMapper());
+//        JsonParser parser = mapper.jsonProvider().createParser(new StringReader(origTemplateSource));
+//        PutIndexTemplateResponse.Builder deserialize = mapper.deserialize(parser, PutIndexTemplateResponse.Builder.class);
+        
         try (final InputStream resultJsonStream = new ByteArrayInputStream(origTemplateSource.getBytes());
                  final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
-            
+                                
             final PutIndexTemplateRequest trequest = PutIndexTemplateRequest._DESERIALIZER.deserialize(jsonValueParser, new JacksonJsonpMapper());
             final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
             if (!putTemplateResponse.acknowledged()) {

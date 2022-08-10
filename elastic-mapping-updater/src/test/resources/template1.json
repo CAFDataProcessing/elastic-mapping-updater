@@ -1,191 +1,20 @@
 {
-    "_name": "sample-template",
-    "template": {
-        "settings": {
-            "index": {
-                "number_of_shards": 5,
-                "number_of_replicas": 0,
-                "codec": "best_compression",
-                "refresh_interval": "1s",
-                "max_result_window": "1000000",
-                "merge.scheduler.max_thread_count": 1
-            },
-            "analysis": {
-                "char_filter": {
-                    "html_strip_filter": {
-                        "type": "html_strip"
-                    }
-                },
-                "filter": {
-                    "million_token_limit": {
-                        "type": "limit",
-                        "max_token_count": 1000000
-                    },
-                    "period_break_filter": {
-                        "type": "pattern_capture",
-                        "preserve_original": false,
-                        "patterns": [
-                            "^([\\\\p{Nd},\\\\.'?]+)$|([^\\\\.']+)"
-                        ]
-                    },
-                    "max_token_length_filter": {
-                        "type": "length",
-                        "max": 10922
-                    }
-                },
-                "analyzer": {
-                    "general_analyzer": {
-                        "type": "custom",
-                        "filter": [
-                            "million_token_limit",
-                            "max_token_length_filter",
-                            "icu_normalizer"
-                        ],
-                        "char_filter": [],
-                        "tokenizer": "icu_tokenizer"
-                    },
-                    "path_analyzer": {
-                        "type": "custom",
-                        "tokenizer": "path_analyzer",
-                        "filter": [
-                            "max_token_length_filter",
-                            "icu_normalizer"
-                        ]
-                    },
-                    "version_analyzer": {
-                        "type": "pattern",
-                        "pattern": "\\\\s+"
-                    },
-                    "standard_max_term_100": {
-                        "type": "standard",
-                        "stopwords": "_english_",
-                        "max_token_length": 100
-                    }
-                },
-                "normalizer": {
-                    "keyword_normalizer": {
-                        "type": "custom",
-                        "filter": [
-                            "icu_normalizer"
-                        ]
-                    }
-                },
-                "tokenizer": {
-                    "path_analyzer": {
-                        "type": "path_hierarchy",
-                        "delimiter": "/"
-                    }
-                }
-            }
+    "index_patterns": ["te*", "bar*"],
+    "settings": {
+        "number_of_shards": 1
+    },
+    "mappings": {
+        "_source": {
+            "enabled": false
         },
-        "mappings": {
-            "_routing": {
-                "required": true
+        "properties": {
+            "host_name": {
+                "type": "keyword"
             },
-            "dynamic_templates": [
-                {
-                    "EVERY_THING_ELSE_TEMPLATE": {
-                        "match": "*",
-                        "mapping": {
-                            "doc_values": false,
-                            "index": false,
-                            "store": false,
-                            "type": "text"
-                        }
-                    }
-                }
-            ],
-            "properties": {
-                "FAILURES": {
-                    "properties": {
-                        "AJP_JOB_RUN_ID": {
-                            "type": "keyword",
-                            "ignore_above": 20
-                        },
-                        "AJP_WORK_UNIT_ID": {
-                            "type": "keyword",
-                            "ignore_above": 20
-                        },
-                        "COMPONENT": {
-                            "type": "keyword",
-                            "ignore_above": 64
-                        },
-                        "DATE": {
-                            "type": "date",
-                            "format": "strict_date_optional_time||epoch_second"
-                        },
-                        "ID": {
-                            "type": "keyword",
-                            "ignore_above": 32
-                        },
-                        "MESSAGE": {
-                            "type": "text",
-                            "copy_to": [
-                                "FAILURES.MESSAGE_AGGREGATE"
-                            ],
-                            "analyzer": "general_analyzer"
-                        },
-                        "MESSAGE_AGGREGATE": {
-                            "type": "keyword",
-                            "ignore_above": 256
-                        },
-                        "WORKFLOW_ACTION": {
-                            "type": "keyword",
-                            "ignore_above": 32
-                        },
-                        "WORKFLOW_NAME": {
-                            "type": "keyword",
-                            "ignore_above": 100
-                        }
-                    }
-                },
-                "ENTITIES": {
-                    "properties": {
-                        "ENTITY_ID": {
-                            "ignore_above": 1024,
-                            "type": "keyword"
-                        },
-                        "GRAMMAR_ID": {
-                            "ignore_above": 1024,
-                            "type": "keyword"
-                        },
-                        "VALUES": {
-                            "ignore_above": 1024,
-                            "type": "keyword"
-                        }
-                    }
-                },
-                "PERSON": {
-                    "properties": {
-                        "NAME": {
-                            "type": "keyword",
-                            "ignore_above": 20
-                        }
-                    }
-                },
-                "ID": {
-                    "type": "long",
-                    "ignore_malformed": true
-                },
-                "TITLE": {
-                    "type": "text",
-                    "analyzer": "path_analyzer"
-                },
-                "CONTENT_PRIMARY": {
-                    "type": "text",
-                    "analyzer": "path_analyzer"
-                },
-                "IS_HEAD_OF_FAMILY": {
-                    "type": "boolean"
-                },
-                "DATE_PROCESSED": {
-                    "type": "date",
-                    "format": "strict_date_optional_time||epoch_second"
-                }
+            "created_at": {
+                "type": "date",
+                "format": "EEE MMM dd HH:mm:ss Z yyyy"
             }
         }
-    },
-    "index_patterns": [
-        "*_sample-*"
-    ]
+    }
 }
