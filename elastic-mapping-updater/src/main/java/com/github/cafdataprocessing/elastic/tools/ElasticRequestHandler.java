@@ -64,7 +64,7 @@ final class ElasticRequestHandler
         throws IOException, GetTemplatesException
     {
         LOGGER.debug("Getting templates...");
-        final Request request = new Request("GET", "/_template");
+        final Request request = new Request("GET", "/_index_template");
         final Response response = elasticClient.performRequest(request);
 
         final int statusCode = response.getStatusLine().getStatusCode();

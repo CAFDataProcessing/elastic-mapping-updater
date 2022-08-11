@@ -15,6 +15,7 @@
  */
 package com.github.cafdataprocessing.elastic.tools.test;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -48,19 +49,23 @@ import jakarta.json.stream.JsonGenerator;
 import jakarta.json.stream.JsonParser;
 import java.io.ByteArrayInputStream;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.net.ConnectException;
 import java.net.HttpRetryException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.opensearch.client.json.JsonData;
+import org.opensearch.client.json.jackson.JacksonJsonpGenerator;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.Refresh;
 import org.opensearch.client.opensearch._types.Result;
+import org.opensearch.client.opensearch._types.mapping.Property;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
 import org.opensearch.client.opensearch._types.query_dsl.QueryBuilders;
@@ -74,6 +79,8 @@ import org.opensearch.client.opensearch.indices.GetIndexResponse;
 import org.opensearch.client.opensearch.indices.IndexState;
 import org.opensearch.client.opensearch.indices.PutIndexTemplateRequest;
 import org.opensearch.client.opensearch.indices.PutIndexTemplateResponse;
+import org.opensearch.client.opensearch.indices.put_index_template.IndexTemplateMapping;
+import org.opensearch.client.opensearch.indices.simulate_template.Template;
 import org.opensearch.client.transport.rest_client.RestClientTransport;
 
 public final class ElasticMappingUpdaterIT
@@ -93,14 +100,54 @@ public final class ElasticMappingUpdaterIT
     {
         protocol = "http"; //System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL");
         host = "localhost";//System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES");
-        port = 8080;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT"));
+        port = 9200;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT"));
         username = "";
         password = "";
-        connectTimeout = 1000;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT"));
-        socketTimeout = 1000;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT"));
+        connectTimeout = 1000000000;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT"));
+        socketTimeout = 1000000000;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT"));
 
-        transport = new RestClientTransport(RestClient.builder(new HttpHost(host, port, "http")).build(), new JacksonJsonpMapper());
+        transport = new RestClientTransport(RestClient.builder(new HttpHost(host, port, protocol)).build(), new JacksonJsonpMapper());
         client = new OpenSearchClient(transport);
+    }
+    
+    private void sendPutIndexTemplateRequest(final String templateName, final String fileLocation) throws IOException
+    {
+        final String origTemplateSource = readFile(fileLocation);
+
+        final RestClient restClient = transport.restClient();
+        final String endpoint = "_index_template/" + UrlEscapers.urlPathSegmentEscaper().escape(templateName);
+        final Request request = new Request("PUT", endpoint);
+        final StringBuilder jsonMapping = new StringBuilder();
+
+        jsonMapping.append(origTemplateSource);
+        request.setJsonEntity(jsonMapping.toString());
+        final Response response = restClient.performRequest(request);
+
+        if (response.getStatusLine().getStatusCode() != 200) {
+            fail();
+        }
+    }
+    
+    private void sendCreateIndexRequest(final String indexName, final String id, final String routing, final String document)
+        throws InterruptedException
+    {
+        try (final JsonParser jsonValueParser = Json.createParser(new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)))) {
+            JsonData jsonData = JsonData.from(jsonValueParser, new JacksonJsonpMapper());
+            // Create an index with some data
+            IndexRequest<JsonData> request = new IndexRequest.Builder<JsonData>()
+                .index(indexName)
+                .id(id)
+                .routing(routing)
+                .document(jsonData)
+                .refresh(Refresh.True)
+                .build();
+
+            final boolean needsRetries = indexDocumentWithRetry(request);
+            if (needsRetries) {
+                // Indexing has failed after multiple retries
+                fail();
+            }
+        }
     }
 
     @Test
@@ -121,68 +168,34 @@ public final class ElasticMappingUpdaterIT
         final String updatedTemplateSourceFile = "/template2.json";
         final String indexName = "foo-com_sample-000001";
 
-        final String origTemplateSource = readFile(origTemplateSourceFile);
+        sendPutIndexTemplateRequest(templateName, origTemplateSourceFile);
+        
+        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Creating index matching template {}", templateName);
+       
+        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        sendCreateIndexRequest(indexName, "1", "1", jsonString);
+        
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        
+        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating template {}", templateName);
+        
+        sendPutIndexTemplateRequest(templateName, updatedTemplateSourceFile);
+        
+        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating indexes matching template {}", templateName);
+        updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName);
+        
+        // Verify index mapping has new properties
+        final TypeMapping indexTypeMappings = getIndexMapping("testUpdateIndexesOfUpdatedTemplate", indexName);
+        
+        // Verify new prop DATE_DISPOSED was added
+        final Property dateDisposed = indexTypeMappings.properties().get("DATE_DISPOSED");
+        
+        assertNotNull("testUpdateIndexesOfUpdatedTemplate", dateDisposed);
+    }
 
-//        JacksonJsonpMapper mapper = new JacksonJsonpMapper(new com.fasterxml.jackson.databind.json.JsonMapper());
-//        JsonParser parser = mapper.jsonProvider().createParser(new StringReader(origTemplateSource));
-//        PutIndexTemplateResponse.Builder deserialize = mapper.deserialize(parser, PutIndexTemplateResponse.Builder.class);
-        
-        try (final InputStream resultJsonStream = new ByteArrayInputStream(origTemplateSource.getBytes());
-                 final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
-                                
-            final PutIndexTemplateRequest trequest = PutIndexTemplateRequest._DESERIALIZER.deserialize(jsonValueParser, new JacksonJsonpMapper());
-            final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-            if (!putTemplateResponse.acknowledged()) {
-                fail();
-            }
-        }
-        
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        
-//        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        final boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating indexes matching template {}", templateName);
-//        updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName);
-//
 //        // Verify index mapping has new properties
 //        final TypeMapping indexTypeMappings = getIndexMapping("testUpdateIndexesOfUpdatedTemplate", indexName);
 //        @SuppressWarnings("unchecked")
@@ -218,7 +231,7 @@ public final class ElasticMappingUpdaterIT
 //        }
 //
 //        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
-    }
+//    }
 
 //    @Test
 //    public void testUpdateUnsupportedChanges() throws IOException, GetIndexException, InterruptedException
@@ -1333,17 +1346,17 @@ public final class ElasticMappingUpdaterIT
 //
 //    }
 //
-//    private void updateIndex(final String testName, final String templateName)
-//    {
-//        LOGGER.info("{}: {}", testName, templateName);
-//        try {
-//            ElasticMappingUpdater.update(false, host, protocol, port, username, password, connectTimeout,
-//                                         socketTimeout);
-//        } catch (final IOException | UnexpectedResponseException | GetIndexException | GetTemplatesException e) {
-//            LOGGER.error(testName, e);
-//            fail(testName + ":" + e);
-//        }
-//    }
+    private void updateIndex(final String testName, final String templateName)
+    {
+        LOGGER.info("{}: {}", testName, templateName);
+        try {
+            ElasticMappingUpdater.update(false, host, protocol, port, username, password, connectTimeout,
+                                         socketTimeout);
+        } catch (final IOException | UnexpectedResponseException | GetIndexException | GetTemplatesException e) {
+            LOGGER.error(testName, e);
+            fail(testName + ":" + e);
+        }
+    }
 //
     public static String readFile(final String path) throws IOException
     {
@@ -1371,110 +1384,123 @@ public final class ElasticMappingUpdaterIT
             }
         }
     }
+
+    private void verifyIndexData(final String indexName, final Query query, final long expectedHitCount) throws IOException
+    {
+        final SearchRequest searchRequest = new SearchRequest.Builder()
+            .index(indexName)
+            .trackTotalHits(TrackHits.of(x -> x.enabled(Boolean.TRUE)))
+            .query(query)
+            .build();
+        
+        SearchResponse<JsonData> searchResponse = client.search(searchRequest, JsonData.class);
+        final long totalDocs = searchResponse.hits().total().value();
+        LOGGER.info("Hits : {}", totalDocs);
+        
+        final StringWriter writer = new StringWriter();
+        try (final JacksonJsonpGenerator generator = new JacksonJsonpGenerator(new JsonFactory().createGenerator(writer))) {
+            searchResponse.serialize(generator, new JacksonJsonpMapper());
+        } catch (IOException ex) {
+            LOGGER.error("Error parsing search response", ex);
+        }
+        LOGGER.info("Search response: " + writer.toString());
+
+        assertTrue("Got test document", totalDocs == expectedHitCount);
+
+        final List<Hit<JsonData>> searchHits = searchResponse.hits().hits();
+        for (final Hit<JsonData> hit : searchHits) {
+            writer.getBuffer().setLength(0);
+            try (final JacksonJsonpGenerator generator = new JacksonJsonpGenerator(new JsonFactory().createGenerator(writer))) {
+                hit.serialize(generator, new JacksonJsonpMapper());
+            } catch (IOException ex) {
+                LOGGER.error("Error parsing hit", ex);
+            }
+            LOGGER.info("hit : {}", writer.toString());
+        }
+    }
+
+    private TypeMapping getIndexMapping(final String testName, final String indexName) throws IOException, GetIndexException
+    {
+        LOGGER.info("{} - Get index {}", testName, indexName);
+        final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
+        final Response response = transport.restClient().performRequest(request);
+
+        final int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode == 200) {
+            try (final InputStream resultJsonStream = response.getEntity().getContent();
+                 final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
+                final GetIndexResponse getIndexResponse = GetIndexResponse._DESERIALIZER.deserialize(jsonValueParser, 
+                                                                                                     new JacksonJsonpMapper());
+                final IndexState indexMappings = getIndexResponse.result().get(indexName);
+                final TypeMapping indexTypeMappings = indexMappings.mappings();
+                LOGGER.info("{}------Updated mapping for index '{}': {}", testName, indexName, indexTypeMappings);
+                return indexTypeMappings;
+            }
+        } else {
+            throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
+                                                      indexName, statusCode, EntityUtils.toString(response.getEntity())));
+        }
+    }
 //
-//    private void verifyIndexData(final String indexName, final Query query, final long expectedHitCount) throws IOException
-//    {
-//        final SearchRequest searchRequest = new SearchRequest.Builder()
-//            .index(indexName)
-//            .trackTotalHits(TrackHits.of(x -> x.enabled(Boolean.TRUE)))
-//            .query(query)
-//            .build();
-//        
-//        SearchResponse<JsonData> searchResponse = client.search(searchRequest, JsonData.class);
-//        final long totalDocs = searchResponse.hits().total().value();
-//        LOGGER.info("Hits : {}", totalDocs);
-//        LOGGER.info(searchResponse.toString());
-//        assertTrue("Got test document", totalDocs == expectedHitCount);
-//
-//        final List<Hit<JsonData>> searchHits = searchResponse.hits().hits();
-//        for (final Hit<JsonData> hit : searchHits) {
-//            final String sourceAsMap = hit.source().to(String.class, new JacksonJsonpMapper());
-//            LOGGER.info("hit : {}", sourceAsMap);
-//        }
-//    }
-//
-//    private TypeMapping getIndexMapping(final String testName, final String indexName) throws IOException, GetIndexException
-//    {
-//        LOGGER.info("{} - Get index {}", testName, indexName);
-//        final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
-//        final Response response = transport.restClient().performRequest(request);
-//
-//        final int statusCode = response.getStatusLine().getStatusCode();
-//        if (statusCode == 200) {
-//            try (final InputStream resultJsonStream = response.getEntity().getContent();
-//                 final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
-//                final GetIndexResponse getIndexResponse = GetIndexResponse._DESERIALIZER.deserialize(jsonValueParser, 
-//                                                                                                     new JacksonJsonpMapper());
-//                final IndexState indexMappings = getIndexResponse.result().get(indexName);
-//                final TypeMapping indexTypeMappings = indexMappings.mappings();
-//                LOGGER.info("{}------Updated mapping for index '{}': {}", testName, indexName, indexTypeMappings);
-//                return indexTypeMappings;
-//            }
-//        } else {
-//            throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
-//                                                      indexName, statusCode, EntityUtils.toString(response.getEntity())));
-//        }
-//    }
-//
-//    private boolean indexDocumentWithRetry(final IndexRequest request) throws InterruptedException
-//    {
-//        boolean retry = true;
-//        for (int i = 0; i < 3; i++) {
-//            retry = indexDocument(request);
-//            if (!retry) {
-//                break;
-//            }
-//            Thread.sleep(3000);
-//        }
-//        return retry;
-//    }
-//
-//    private boolean indexDocument(final IndexRequest<JsonData> request)
-//    {
-//        try {
-//            final IndexResponse response = client.index(request);
-//            assertTrue(response.result().equals(Result.Created));
-//        } catch (final IOException ex) {
-//            return isServiceUnAvailableException(ex);
-//        }
-//        return false;
-//    }
-//
-//    private static boolean isServiceUnAvailableException(final Exception ex)
-//    {
-//        final Throwable cause = ex.getCause();
-//
-//        if (cause instanceof Exception && cause != ex && isServiceUnAvailableException((Exception) cause)) {
-//            return true;
-//        }
-//
-//        if (ex instanceof ConnectException) {
-//            // Thrown to signal that an error occurred while attempting to connect a socket to a remote address and port.
-//            // Typically, the connection was refused remotely (e.g., no process is listening on the remote address/port)
-//            return true;
-//        }
-//        if (ex instanceof SocketException) {
-//            // Thrown to indicate that there is an error creating or accessing a Socket.
-//            return true;
-//        }
-//        if (ex instanceof SocketTimeoutException) {
-//            // Signals that a timeout has occurred on a socket read or accept.
-//            return true;
-//        }
-//        if (ex instanceof UnknownHostException) {
-//            // There is a possibility of IP address of host could not be determined because of some network issue.
-//            // This can be treated as transient
-//            return true;
-//        }
-//        if (ex instanceof HttpRetryException) {
-//            // Thrown to indicate that a HTTP request needs to be retried but cannot be retried automatically, due to streaming
-//            // mode being enabled.
-//            return true;
-//        }
-//        if (ex instanceof ConnectTimeoutException) {
-//            // ConnectionPoolTimeoutException < ConnectTimeoutException
-//            return true;
-//        }
-//        return false;
-//    }
+    private boolean indexDocumentWithRetry(final IndexRequest request) throws InterruptedException
+    {
+        boolean retry = true;
+        for (int i = 0; i < 3; i++) {
+            retry = indexDocument(request);
+            if (!retry) {
+                break;
+            }
+            Thread.sleep(3000);
+        }
+        return retry;
+    }
+
+    private boolean indexDocument(final IndexRequest<JsonData> request)
+    {
+        try {
+            final IndexResponse response = client.index(request);
+            assertTrue(response.result().equals(Result.Created));
+        } catch (final IOException ex) {
+            return isServiceUnAvailableException(ex);
+        }
+        return false;
+    }
+
+    private static boolean isServiceUnAvailableException(final Exception ex)
+    {
+        final Throwable cause = ex.getCause();
+
+        if (cause instanceof Exception && cause != ex && isServiceUnAvailableException((Exception) cause)) {
+            return true;
+        }
+
+        if (ex instanceof ConnectException) {
+            // Thrown to signal that an error occurred while attempting to connect a socket to a remote address and port.
+            // Typically, the connection was refused remotely (e.g., no process is listening on the remote address/port)
+            return true;
+        }
+        if (ex instanceof SocketException) {
+            // Thrown to indicate that there is an error creating or accessing a Socket.
+            return true;
+        }
+        if (ex instanceof SocketTimeoutException) {
+            // Signals that a timeout has occurred on a socket read or accept.
+            return true;
+        }
+        if (ex instanceof UnknownHostException) {
+            // There is a possibility of IP address of host could not be determined because of some network issue.
+            // This can be treated as transient
+            return true;
+        }
+        if (ex instanceof HttpRetryException) {
+            // Thrown to indicate that a HTTP request needs to be retried but cannot be retried automatically, due to streaming
+            // mode being enabled.
+            return true;
+        }
+        if (ex instanceof ConnectTimeoutException) {
+            // ConnectionPoolTimeoutException < ConnectTimeoutException
+            return true;
+        }
+        return false;
+    }
 }
