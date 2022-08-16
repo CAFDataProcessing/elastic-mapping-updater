@@ -196,7 +196,7 @@ public final class ElasticMappingUpdaterIT
         
         LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating indexes matching template {}", templateName);
         updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName);
-        
+
         // Verify index mapping has new properties
         final TypeMapping indexTypeMappings = getIndexMapping("testUpdateIndexesOfUpdatedTemplate", indexName);
         

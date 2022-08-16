@@ -357,9 +357,7 @@ public final class ElasticMappingUpdater
             for (final Map.Entry<String, ValueDifference<Object>> e : entriesDiffering.entrySet()) {
                 final Map<?, ?> leftEntry = ((Map<?, ?>) (e.getValue().leftValue()));
                 final Map<?, ?> rightEntry = ((Map<?, ?>) (e.getValue().rightValue()));
-                if (rightEntry.containsKey(MAPPING_PROPS_KEY)
-                    && List.of("object", "nested").contains(rightEntry.get(MAPPING_TYPE_KEY).toString())
-                    && leftEntry.containsKey(MAPPING_PROPS_KEY)
+                if (rightEntry.containsKey(MAPPING_PROPS_KEY) && leftEntry.containsKey(MAPPING_PROPS_KEY)
                     && !leftEntry.get(MAPPING_TYPE_KEY).equals(rightEntry.get(MAPPING_TYPE_KEY))) {
                     typeDifferences.put(e.getKey(), e.getValue());
                 }
@@ -459,7 +457,7 @@ public final class ElasticMappingUpdater
         }
     }
     
-    private Map<String,Object> getObjectAsHashMap(Map<String,? extends Object> obj) throws JsonProcessingException, IOException{
+    private Map<String,Object> getObjectAsHashMap(final Map<String,? extends Object> obj) throws JsonProcessingException, IOException{
         final Map<String, Object> mapFromString = new LinkedHashMap<>();
         for (final Map.Entry<String, ?> val : obj.entrySet()) {
             final ObjectMapper mapper = new ObjectMapper();
@@ -469,7 +467,7 @@ public final class ElasticMappingUpdater
         return mapFromString;
     }
 
-    private String getStringFromObject(Object value) throws IOException
+    private String getStringFromObject(final Object value) throws IOException
     {
         final StringWriter writer = new StringWriter();
         try (final JacksonJsonpGenerator generator = new JacksonJsonpGenerator(new JsonFactory().createGenerator(writer))) {
