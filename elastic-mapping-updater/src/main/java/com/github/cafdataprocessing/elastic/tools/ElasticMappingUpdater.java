@@ -357,8 +357,8 @@ public final class ElasticMappingUpdater
             for (final Map.Entry<String, ValueDifference<Object>> e : entriesDiffering.entrySet()) {
                 final Map<?, ?> leftEntry = ((Map<?, ?>) (e.getValue().leftValue()));
                 final Map<?, ?> rightEntry = ((Map<?, ?>) (e.getValue().rightValue()));
-                if (rightEntry.containsKey(MAPPING_PROPS_KEY) && leftEntry.containsKey(MAPPING_PROPS_KEY)
-                    && !leftEntry.get(MAPPING_TYPE_KEY).equals(rightEntry.get(MAPPING_TYPE_KEY))) {
+                if (leftEntry.containsKey(MAPPING_PROPS_KEY)
+                    && (!leftEntry.get(MAPPING_TYPE_KEY).equals("object") || !rightEntry.get(MAPPING_TYPE_KEY).equals("object"))) {
                     typeDifferences.put(e.getKey(), e.getValue());
                 }
             }
