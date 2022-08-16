@@ -1,156 +1,167 @@
 {
-    "settings": {
-        "index": {
-            "number_of_shards": 5,
-            "number_of_replicas": 0,
-            "codec": "best_compression",
-            "refresh_interval": "1s",
-            "max_result_window": "1000000",
-            "merge.scheduler.max_thread_count": 1
-        },
-        "analysis": {
-            "char_filter": {
-                "html_strip_filter": {
-                    "type": "html_strip"
-                }
+    "template": {
+        "settings": {
+            "index": {
+                "number_of_shards": 5,
+                "number_of_replicas": 0,
+                "codec": "best_compression",
+                "refresh_interval": "1s",
+                "max_result_window": "1000000",
+                "merge.scheduler.max_thread_count": 1
             },
-            "filter": {
-                "million_token_limit": {
-                    "type": "limit",
-                    "max_token_count": 1000000
+            "analysis": {
+                "char_filter": {
+                    "html_strip_filter": {
+                        "type": "html_strip"
+                    }
                 },
-                "period_break_filter": {
-                    "type": "pattern_capture",
-                    "preserve_original": false,
-                    "patterns": [
-                        "^([\\\\p{Nd},\\\\.'?]+)$|([^\\\\.']+)"
-                    ]
+                "filter": {
+                    "million_token_limit": {
+                        "type": "limit",
+                        "max_token_count": 1000000,
+                        "consume_all_tokens": false
+                    },
+                    "period_break_filter": {
+                        "type": "pattern_capture",
+                        "preserve_original": false,
+                        "patterns": [
+                            "^([\\\\p{Nd},\\\\.'?]+)$|([^\\\\.']+)"
+                        ],
+                        "consume_all_tokens": false
+                    },
+                    "max_token_length_filter": {
+                        "type": "length",
+                        "min": 0,
+                        "max": 10922,
+                        "consume_all_tokens": false
+                    },
+                    "english_stop": {
+                        "type": "stop",
+                        "stopwords": "_english_",
+                        "consume_all_tokens": false
+                    }
                 },
-                "max_token_length_filter": {
-                    "type": "length",
-                    "max": 10922
+                "analyzer": {
+                    "general_analyzer": {
+                        "type": "custom",
+                        "filter": [
+                            "million_token_limit",
+                            "max_token_length_filter",
+                            "icu_normalizer"
+                        ],
+                        "char_filter": [],
+                        "tokenizer": "icu_tokenizer"
+                    },
+                    "path_analyzer": {
+                        "type": "custom",
+                        "tokenizer": "path_analyzer",
+                        "filter": [
+                            "max_token_length_filter",
+                            "icu_normalizer"
+                        ]
+                    },
+                    "version_analyzer": {
+                        "type": "pattern",
+                        "pattern": "\\\\s+"
+                    },
+                    "standard_max_term_100": {
+                        "type": "standard",
+                        "stopwords": "_english_",
+                        "max_token_length": 100
+                    },
+                    "my_analyzer": {
+                        "type": "custom",
+                        "tokenizer": "standard",
+                        "filter": [
+                            "lowercase"
+                        ]
+                    },
+                    "my_stop_analyzer": {
+                        "type": "custom",
+                        "tokenizer": "standard",
+                        "filter": [
+                            "lowercase",
+                            "english_stop"
+                        ]
+                    }
                 },
-                "english_stop": {
-                    "type": "stop",
-                    "stopwords": "_english_"
-                }
-            },
-            "analyzer": {
-                "general_analyzer": {
-                    "type": "custom",
-                    "filter": [
-                        "million_token_limit",
-                        "max_token_length_filter",
-                        "icu_normalizer"
-                    ],
-                    "char_filter": [ ],
-                    "tokenizer": "icu_tokenizer"
+                "normalizer": {
+                    "keyword_normalizer": {
+                        "type": "custom",
+                        "filter": [
+                            "icu_normalizer"
+                        ]
+                    },
+                    "my_normalizer": {
+                        "type": "custom",
+                        "char_filter": [],
+                        "filter": [
+                            "lowercase",
+                            "asciifolding"
+                        ]
+                    }
                 },
-                "path_analyzer": {
-                    "type": "custom",
-                    "tokenizer": "path_analyzer",
-                    "filter": [
-                        "max_token_length_filter",
-                        "icu_normalizer"
-                    ]
-                },
-                "version_analyzer": {
-                    "type": "pattern",
-                    "pattern": "\\\\s+"
-                },
-                "standard_max_term_100": {
-                    "type": "standard",
-                    "stopwords": "_english_",
-                    "max_token_length": 100
-                },
-                "my_analyzer": {
-                    "type": "custom",
-                    "tokenizer": "standard",
-                    "filter": [
-                        "lowercase"
-                    ]
-                },
-                "my_stop_analyzer": {
-                    "type": "custom",
-                    "tokenizer": "standard",
-                    "filter": [
-                        "lowercase",
-                        "english_stop"
-                    ]
-                }
-            },
-            "normalizer": {
-                "keyword_normalizer": {
-                    "type": "custom",
-                    "filter": [
-                        "icu_normalizer"
-                    ]
-                },
-                "my_normalizer": {
-                    "type": "custom",
-                    "char_filter": [ ],
-                    "filter": [
-                        "lowercase",
-                        "asciifolding"
-                    ]
-                }
-            },
-            "tokenizer": {
-                "path_analyzer": {
-                    "type": "path_hierarchy",
-                    "delimiter": "/"
+                "tokenizer": {
+                    "path_analyzer": {
+                        "type": "path_hierarchy",
+                        "delimiter": "/",
+                        "replacement": "/",
+                        "buffer_size": 1024,
+                        "reverse": false,
+                        "skip": 0
+                    }
                 }
             }
-        }
-    },
-    "mappings": {
-        "_routing": {
-            "required": true
         },
-        "dynamic": "strict",
-        "properties": {
-            "some_content2": {
-                "type": "text"
+        "mappings": {
+            "_routing": {
+                "required": true
             },
-			"PROCESSING": {
-                "properties": {
-                    "ID": {
-                        "type": "keyword",
-                        "ignore_above": 10922,
-                        "eager_global_ordinals": true
-                    },
-                    "OTHER_PROPS": {
-						"properties": {
-							"REF": {
-								"type": "integer"
-							},
-							"BODY_TEXT": {
-								"type": "text"
-							},
-							"status_code": {
-								"type": "keyword",
-								"null_value": "NULL"
-							},
-							"some_date": {
-							    "type": "date",
-								"format": "yyyy-MM-dd"
-							}
-						}
-					}					
-                }
-            },
-            "LANGUAGE_CODES": {
-                "properties": {
-                    "CODE": {
-                        "type": "keyword"
-                    },
-                    "CONFIDENCE": {
-                        "type": "keyword"
-                    },
-					"textdata1": {
-						"type": "text",
-						"index_phrases": true
-					}
+            "dynamic": "strict",
+            "properties": {
+                "some_content2": {
+                    "type": "text"
+                },
+                "PROCESSING": {
+                    "properties": {
+                        "ID": {
+                            "type": "keyword",
+                            "ignore_above": 10922,
+                            "eager_global_ordinals": true
+                        },
+                        "OTHER_PROPS": {
+                            "properties": {
+                                "REF": {
+                                    "type": "integer"
+                                },
+                                "BODY_TEXT": {
+                                    "type": "text"
+                                },
+                                "status_code": {
+                                    "type": "keyword",
+                                    "null_value": "NULL"
+                                },
+                                "some_date": {
+                                    "type": "date",
+                                    "format": "yyyy-MM-dd"
+                                }
+                            }
+                        }					
+                    }
+                },
+                "LANGUAGE_CODES": {
+                    "properties": {
+                        "CODE": {
+                            "type": "keyword"
+                        },
+                        "CONFIDENCE": {
+                            "type": "keyword"
+                        },
+                        "textdata1": {
+                            "type": "text",
+                            "index_phrases": true
+                        }
+                    }
                 }
             }
         }

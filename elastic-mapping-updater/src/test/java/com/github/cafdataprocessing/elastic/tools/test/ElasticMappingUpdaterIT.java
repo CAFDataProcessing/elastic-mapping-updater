@@ -16,7 +16,6 @@
 package com.github.cafdataprocessing.elastic.tools.test;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -32,7 +31,6 @@ import java.util.Map;
 import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
 import org.opensearch.client.Request;
-import org.opensearch.client.RequestOptions;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
 import org.junit.Test;
@@ -45,10 +43,8 @@ import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplatesExcepti
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
 import jakarta.json.Json;
-import jakarta.json.stream.JsonGenerator;
 import jakarta.json.stream.JsonParser;
 import java.io.ByteArrayInputStream;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.ConnectException;
 import java.net.HttpRetryException;
@@ -56,15 +52,16 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ConnectTimeoutException;
+import static org.junit.Assert.assertFalse;
+import org.junit.Before;
 import org.opensearch.client.json.JsonData;
 import org.opensearch.client.json.jackson.JacksonJsonpGenerator;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
-import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.Refresh;
 import org.opensearch.client.opensearch._types.Result;
+import org.opensearch.client.opensearch._types.mapping.DynamicTemplate;
 import org.opensearch.client.opensearch._types.mapping.Property;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
@@ -77,10 +74,6 @@ import org.opensearch.client.opensearch.core.search.Hit;
 import org.opensearch.client.opensearch.core.search.TrackHits;
 import org.opensearch.client.opensearch.indices.GetIndexResponse;
 import org.opensearch.client.opensearch.indices.IndexState;
-import org.opensearch.client.opensearch.indices.PutIndexTemplateRequest;
-import org.opensearch.client.opensearch.indices.PutIndexTemplateResponse;
-import org.opensearch.client.opensearch.indices.put_index_template.IndexTemplateMapping;
-import org.opensearch.client.opensearch.indices.simulate_template.Template;
 import org.opensearch.client.transport.rest_client.RestClientTransport;
 
 public final class ElasticMappingUpdaterIT
@@ -110,7 +103,19 @@ public final class ElasticMappingUpdaterIT
         client = new OpenSearchClient(transport);
     }
     
-    private void sendPutIndexTemplateRequest(final String templateName, final String fileLocation) throws IOException
+    private void deleteAllIndexTemplates() throws IOException{
+        LOGGER.info("Deleting all index templates");
+        final RestClient restClient = transport.restClient();
+        final String endpoint = "_index_template/*";
+        final Request request = new Request("DELETE", endpoint);
+        final Response response = restClient.performRequest(request);
+        
+        if (response.getStatusLine().getStatusCode() != 200) {
+            fail();
+        }
+    }
+    
+    private void putIndexTemplate(final String templateName, final String fileLocation) throws IOException
     {
         final String origTemplateSource = readFile(fileLocation);
 
@@ -128,13 +133,13 @@ public final class ElasticMappingUpdaterIT
         }
     }
     
-    private void sendCreateIndexRequest(final String indexName, final String id, final String routing, final String document)
+    private void createIndex(final String indexName, final String id, final String routing, final String document)
         throws InterruptedException
     {
         try (final JsonParser jsonValueParser = Json.createParser(new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)))) {
-            JsonData jsonData = JsonData.from(jsonValueParser, new JacksonJsonpMapper());
+            final JsonData jsonData = JsonData.from(jsonValueParser, new JacksonJsonpMapper());
             // Create an index with some data
-            IndexRequest<JsonData> request = new IndexRequest.Builder<JsonData>()
+            final IndexRequest<JsonData> request = new IndexRequest.Builder<JsonData>()
                 .index(indexName)
                 .id(id)
                 .routing(routing)
@@ -148,6 +153,11 @@ public final class ElasticMappingUpdaterIT
                 fail();
             }
         }
+    }
+    
+    @Before
+    public void init() throws IOException{
+        deleteAllIndexTemplates();
     }
 
     @Test
@@ -168,7 +178,7 @@ public final class ElasticMappingUpdaterIT
         final String updatedTemplateSourceFile = "/template2.json";
         final String indexName = "foo-com_sample-000001";
 
-        sendPutIndexTemplateRequest(templateName, origTemplateSourceFile);
+        putIndexTemplate(templateName, origTemplateSourceFile);
         
         LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Creating index matching template {}", templateName);
        
@@ -176,13 +186,13 @@ public final class ElasticMappingUpdaterIT
             + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
         jsonString = jsonString.replaceAll("'", "\"");
         
-        sendCreateIndexRequest(indexName, "1", "1", jsonString);
+        createIndex(indexName, "1", "1", jsonString);
         
         verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
         
         LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating template {}", templateName);
         
-        sendPutIndexTemplateRequest(templateName, updatedTemplateSourceFile);
+        putIndexTemplate(templateName, updatedTemplateSourceFile);
         
         LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating indexes matching template {}", templateName);
         updateIndex("testUpdateIndexesOfUpdatedTemplate", templateName);
@@ -194,1158 +204,771 @@ public final class ElasticMappingUpdaterIT
         final Property dateDisposed = indexTypeMappings.properties().get("DATE_DISPOSED");
         
         assertNotNull("testUpdateIndexesOfUpdatedTemplate", dateDisposed);
+        
+        jsonString = "{"
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+         // Index more data
+        createIndex(indexName, "2", "1", jsonString);
+        
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
     }
 
-//        // Verify index mapping has new properties
-//        final TypeMapping indexTypeMappings = getIndexMapping("testUpdateIndexesOfUpdatedTemplate", indexName);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.properties();
-//        // Verify new prop DATE_DISPOSED was added
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_DISPOSED");
-//        assertNotNull("testUpdateIndexesOfUpdatedTemplate", propMapping);
-//
-//        // Index more data
-//        request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("2")
-//            .routing("1");
-//        
-//        jsonString = "{"
-//            + "'TITLE':'doc2',"
-//            + "'DATE_PROCESSED':'2020-02-11',"
-//            + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true,"
-//            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
-//            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
-//            + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//
-//        try {
-//            final IndexResponse response = client.index(request.build());
-//            assertTrue(response.result().equals(Result.Created));
-//        } catch (final OpenSearchException e) {
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
-//    }
+    @Test
+    public void testUpdateUnsupportedChanges() throws IOException, GetIndexException, InterruptedException
+    {
+        LOGGER.info("Running test 'testUpdateUnsupportedChanges'...");
+        final String templateName = "acme-sample-template";
+        final String origTemplateSourceFile = "/template3.json";
+        /*
+         * Dynamic templates removed
+         * 'strict' mapping introduced
+         * New simple prop STACK added to prop FAILURES
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * New date prop DATE_DISPOSED added
+         * This template has modified "type" param for IS_HEAD_OF_FAMILY and FAILURES/AJP_JOB_RUN_ID
+         * IS_HEAD_OF_FAMILY: "ignore_malformed" added
+         * FAILURES/AJP_JOB_RUN_ID: "ignore_above" removed and ignore_malformed added
+         * LANGUAGE_CODES: type set to nested (changed from object), "include_in_parent" added
+         */
+        final String unsupportedTemplateSourceFile = "/template4.json";
+        final String indexName = "test_acmesample-000001";
 
-//    @Test
-//    public void testUpdateUnsupportedChanges() throws IOException, GetIndexException, InterruptedException
-//    {
-//        LOGGER.info("Running test 'testUpdateUnsupportedChanges'...");
-//        final String templateName = "acme-sample-template";
-//        final String origTemplateSourceFile = "/template3.json";
-//        /*
-//         * Dynamic templates removed
-//         * 'strict' mapping introduced
-//         * New simple prop STACK added to prop FAILURES
-//         * New simple prop AGE added to prop PERSON
-//         * New nested prop HOLD_DETAILS added
-//         * New date prop DATE_DISPOSED added
-//         * This template has modified "type" param for IS_HEAD_OF_FAMILY and FAILURES/AJP_JOB_RUN_ID
-//         * IS_HEAD_OF_FAMILY: "ignore_malformed" added
-//         * FAILURES/AJP_JOB_RUN_ID: "ignore_above" removed and ignore_malformed added
-//         * LANGUAGE_CODES: type set to nested (changed from object), "include_in_parent" added
-//         */
-//        final String unsupportedTemplateSourceFile = "/template4.json";
-//        final String indexName = "test_acmesample-000001";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testUpdateUnsupportedChanges - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testUpdateUnsupportedChanges - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        String jsonString = "{"
-//            + "'TITLE':'doc1',"
-//            + "'DATE_PROCESSED\":'2020-02-11',"
-//            + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true,"
-//            + "'PERSON':{ 'NAME':'person1' }"
-//            + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        final boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testUpdateUnsupportedChanges - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(unsupportedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testUpdateUnsupportedChanges - Updating indexes matching template {}", templateName);
-//        // Unsupported mapping changes not applied to Index mapping
-//        updateIndex("testUpdateUnsupportedChanges", templateName);
-//
-//        // Verify index mapping of unsupported field changes has not changed
-//        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateUnsupportedChanges", indexName);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propMapping = (Map<String, Object>) props.get("IS_HEAD_OF_FAMILY");
-//        final String propValue = (String) propMapping.get("type");
-//        // Verify property mapping value is same as before
-//        assertTrue("testUpdateUnsupportedChanges", propValue.equals("boolean"));
-//        final Object propIgnoreMalformed = propMapping.get("ignore_malformed");
-//        // Verify new param was not added
-//        assertNull("testUpdateUnsupportedChanges", propIgnoreMalformed);
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Map<String, Object>> failuresPropMapping = (Map<String, Map<String, Object>>) props.get("FAILURES");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> jrIdPropMapping = (Map<String, Object>) failuresPropMapping.get("properties").get("AJP_JOB_RUN_ID");
-//        // Verify type is same as before
-//        final String jrIdTypeValue = (String) jrIdPropMapping.get("type");
-//        assertTrue("testUpdateUnsupportedChanges", jrIdTypeValue.equals("keyword"));
-//        // Verify param not removed
-//        final Object propjrIdIgnoreAbove = jrIdPropMapping.get("ignore_above");
-//        assertNotNull("testUpdateUnsupportedChanges", propjrIdIgnoreAbove);
-//        // Verify param not added
-//        final Object propjrIdIgnoreMalformed = jrIdPropMapping.get("ignore_malformed");
-//        assertNull("testUpdateUnsupportedChanges", propjrIdIgnoreMalformed);
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propLCMapping = (Map<String, Object>) props.get("LANGUAGE_CODES");
-//        final Object propLCType = propLCMapping.get("type");
-//        // Verify type not added
-//        assertNull("testUpdateUnsupportedChanges", propLCType);
-//        final Object propLCIncludeInParent = propLCMapping.get("include_in_parent");
-//        // Verify new param was not added
-//        assertNull("testUpdateUnsupportedChanges", propLCIncludeInParent);
-//
-//        // Verify index mapping of allowed field changes has been updated
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Map<String, Object>> personPropMapping = (Map<String, Map<String, Object>>) props.get("PERSON");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> agePropMapping = (Map<String, Object>) personPropMapping.get("properties").get("AGE");
-//        final String ageTypeValue = (String) agePropMapping.get("type");
-//        assertTrue("testUpdateUnsupportedChanges", ageTypeValue.equals("long"));
-//    }
-//
-//    @Test
-//    public void testUpdateDynamicTemplateOverwrite() throws IOException, GetIndexException, InterruptedException
-//    {
-//        LOGGER.info("Running test 'testUpdateDynamicTemplateOverwrite'...");
-//        final String templateName = "sample-template";
-//        // This template has a dynamic_template called "EVERY_THING_ELSE_TEMPLATE"
-//        final String origTemplateSourceFile = "/template5.json";
-//        /* This template has a dynamic_template called "LONG_TEMPLATE"
-//         * New simple prop STACK added to prop FAILURES
-//         * New simple prop AGE added to prop PERSON
-//         * New nested prop HOLD_DETAILS added
-//         * New date prop DATE_DISPOSED added
-//         */
-//        final String updatedTemplateSourceFile = "/template6.json";
-//        final String indexName = "test_dynsample-000001";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testUpdateDynamicTemplateOverwrite - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testUpdateDynamicTemplateOverwrite - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        String jsonString = "{"
-//            + "'TITLE':'doc1',"
-//            + "'DATE_PROCESSED\":'2020-02-11',"
-//            + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true,"
-//            + "'PERSON':{ 'NAME':'person1' }"
-//            + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating indexes matching template {}", templateName);
-//        updateIndex("testUpdateDynamicTemplateOverwrite", templateName);
-//
-//        // Verify updated index mapping has only one dynamic_template from the new index template
-//        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateDynamicTemplateOverwrite", indexName);
-//        Object dynamicTemplatesInTemplate = indexTypeMappings.get("dynamic_templates");
-//        if (dynamicTemplatesInTemplate == null) {
-//            fail();
-//        } else {
-//            @SuppressWarnings("unchecked")
-//            final Map<String, Object> dynTemplate = (Map<String, Object>) ((List<Map<String, Object>>) dynamicTemplatesInTemplate).get(0);
-//            assertTrue("testUpdateDynamicTemplateOverwrite", dynTemplate.size() == 1);
-//            assertNotNull("testUpdateDynamicTemplateOverwrite", dynTemplate.get("LONG_TEMPLATE"));
-//        }
-//
-//        // Index more data
-//        request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("2")
-//            .routing("1");
-//        jsonString = "{"
-//            + "'TITLE':'doc2',"
-//            + "'DATE_PROCESSED':'2020-02-11',"
-//            + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true,"
-//            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
-//            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
-//            + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//
-//        needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
-//    }
-//
-//    @Test
-//    public void testNoIndexesMatchingTemplate() throws IOException
-//    {
-//        LOGGER.info("Running test 'testNoIndexesMatchingTemplate'...");
-//        final String templateName = ".kibana_task_manager";
-//        /*
-//         * This template has "index_patterns" that would not match any indexes
-//         */
-//        final String origTemplateSourceFile = "/template7.json";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testNoIndexesMatchingTemplate - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        // Try updating indexes for template that has no matching indexes
-//        LOGGER.info("testNoIndexesMatchingTemplate - Updating indexes matching template {}", templateName);
-//
-//        updateIndex("testNoIndexesMatchingTemplate", templateName);
-//    }
-//
-//    @Test
-//    public void testUpdateIndexesOfUnSupportedChangesInTemplate() throws IOException, GetIndexException, InterruptedException
-//    {
-//        LOGGER.info("Running test 'testUpdateIndexesOfUnSupportedChangesInTemplate'...");
-//        final String templateName = "sample-template";
-//        final String origTemplateSourceFile = "/template8.json";
-//        /*
-//         * Dynamic templates removed
-//         * 'strict' mapping introduced
-//         * New simple prop STACK added to prop FAILURES
-//         * New object prop MATCH added to prop ENTITIES
-//         * New simple prop AGE added to prop PERSON
-//         * New nested prop HOLD_DETAILS added
-//         * New date prop DATE_DISPOSED added
-//         * ID: ignore_malformed removed
-//         * LANGUAGE_CODES: type changed to object, i.e. "type" removed, "include_in_parent" removed
-//         * New nested prop added to existing field TARGET_REFERENCES/DESTINATION_ID
-//         * TARGET_REFERENCES/TARGET_REFERENCE ignore_above and doc_values removed
-//         */
-//        final String updatedTemplateSourceFile = "/template9.json";
-//        final String indexName = "foo-com_lang-000001";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        String jsonString = "{"
-//            + "'TITLE':'doc1',"
-//            + "'DATE_PROCESSED\":'2020-02-11',"
-//            + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true,"
-//            + "'PERSON':{ 'NAME':'person1' },"
-//            + "'LANGUAGE_CODES':{ 'CODE':'en', 'CONFIDENCE': 100}"
-//            + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        final boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Updating indexes matching template {}", templateName);
-//        updateIndex("testUpdateIndexesOfUnSupportedChangesInTemplate", templateName);
-//
-//        // Verify index mapping has new properties
-//        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateIndexesOfUnSupportedChangesInTemplate", indexName);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_DISPOSED");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", propMapping);
-//
-//        // Verify allowed field changes has updated field mapping
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> idPropMapping = (Map<String, Object>) props.get("ID");
-//        LOGGER.info("idPropMapping {} ", idPropMapping);
-//        final Object idPropValue = idPropMapping.get("ignore_malformed");
-//        // Verify property mapping parameter was removed
-//        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", idPropValue);
-//
-//        // Verify index mapping of unsupported field changes has not changed
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> langPropMapping = (Map<String, Object>) props.get("LANGUAGE_CODES");
-//        final String propValue = (String) langPropMapping.get("type");
-//        // Verify property mapping value is same as before
-//        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", propValue.equals("nested"));
-//
-//        // Verify index mapping of unsupported field changes has been updated with allowed changes
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> targetRefPropMapping = (Map<String, Object>) props.get("TARGET_REFERENCES");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> targetRefProps = (Map<String, Object>) targetRefPropMapping.get("properties");
-//        // Verify new property is added
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> tRefMapping = (Map<String, Object>) targetRefProps.get("TARGET_REFERENCE");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", tRefMapping);
-//        // Verify unsupported change to nested property is not applied
-//        final Boolean propDocValuesValue = (Boolean) tRefMapping.get("doc_values");
-//        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", propDocValuesValue);
-//        // Verify change to nested property is not applied, param not removed
-//        final Integer propIgnoreAboveValue = (Integer) tRefMapping.get("ignore_above");
-//        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", 10922 == propIgnoreAboveValue);
-//        // Verify new nested property is added
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> destMapping = (Map<String, Object>) targetRefProps.get("DESTINATION_ID");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", destMapping);
-//
-//        // Index more data
-//        request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("2")
-//            .routing("1");
-//        jsonString = "{"
-//            + "'TITLE':'doc2',"
-//            + "'DATE_PROCESSED':'2020-02-11',"
-//            + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true,"
-//            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
-//            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'},"
-//            + "'LANGUAGE_CODES':{ 'CODE':'ko', 'CONFIDENCE': 100}"
-//            + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//
-//        try {
-//            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
-//            assertTrue(response.result().equals(Result.Created));
-//        } catch (final OpenSearchException e) {
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
-//    }
-//
-//    @Test
-//    public void testUpdateIndexesWithNestedFieldChanges() throws IOException, GetIndexException, InterruptedException
-//    {
-//        LOGGER.info("Running test 'testUpdateIndexesWithNestedFieldChanges'...");
-//        final String templateName = "sample-template";
-//        final String origTemplateSourceFile = "/template10.json";
-//        /*
-//         * * Dynamic templates removed
-//         * 'strict' mapping introduced
-//         * New simple prop AGE added to prop PERSON
-//         * New nested prop HOLD_DETAILS added
-//         * ENTITIES/GRAMMAR_ID null_value param added
-//         * New date type prop DATE_DISPOSED added
-//         * 'store' and ignore_above param removed from nested property LANGUAGE_CODES/CODE
-//         * 'store' param removed from nested property LANGUAGE_CODES/CONFIDENCE
-//         * nested property type='nested' is removed from LANGUAGE_CODES
-//         * include_in_parent param removed from LANGUAGE_CODES
-//         */
-//        final String updatedTemplateSourceFile = "/template11.json";
-//        final String indexName = "jan_blue-000001";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        final boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Updating indexes matching template {}", templateName);
-//        updateIndex("testUpdateIndexesWithNestedFieldChanges", templateName);
-//
-//        // Verify index mapping has new properties
-//        final Map<String, Object> indexTypeMappings = getIndexMapping("testUpdateIndexesWithNestedFieldChanges", indexName);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propMapping = (Map<String, Object>) props.get("DATE_DISPOSED");
-//        assertNotNull("testUpdateIndexesWithNestedFieldChanges", propMapping);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> entPropMapping = (Map<String, Object>) props.get("ENTITIES");
-//        LOGGER.info("entitiesPropMapping {} ", entPropMapping);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> entitiesProps = (Map<String, Object>) entPropMapping.get("properties");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> gidMapping = (Map<String, Object>) entitiesProps.get("GRAMMAR_ID");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", gidMapping);
-//        // Verify change to nested property is applied, param not added (change not allowed)
-//        final Object gidProp1 = gidMapping.get("null_value");
-//        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", gidProp1);
-//
-//        // Verify index mapping of unsupported field changes to nested property has not changed
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> langPropMapping = (Map<String, Object>) props.get("LANGUAGE_CODES");
-//        final String propValue = (String) langPropMapping.get("type");
-//        // Verify property mapping type and params are same as before
-//        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", propValue.equals("nested"));
-//        final Boolean propValue2 = (Boolean) langPropMapping.get("include_in_parent");
-//        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", propValue2);
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> langProps = (Map<String, Object>) langPropMapping.get("properties");
-//        // Verify new property is added
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> codeMapping = (Map<String, Object>) langProps.get("CODE");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", codeMapping);
-//        // Verify unsupported change to nested property is not applied, param not removed
-//        final Object prop1 = codeMapping.get("store");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", prop1);
-//        // Verify change to nested property is not applied, param not removed
-//        final Object prop2 = codeMapping.get("ignore_above");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", prop2);
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> confidenceMapping = (Map<String, Object>) langProps.get("CONFIDENCE");
-//        // Verify unsupported change to nested property is not applied, param not removed
-//        final Object confidenceProp1 = confidenceMapping.get("store");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", confidenceProp1);
-//
-//        // Index more data
-//        request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("2")
-//            .routing("1");
-//        jsonString = "{"
-//            + "'TITLE':'doc2',"
-//            + "'DATE_PROCESSED':'2020-02-11',"
-//            + "'CONTENT_PRIMARY':'just a test',"
-//            + "'IS_HEAD_OF_FAMILY':true,"
-//            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
-//            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
-//            + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//
-//        try {
-//            final IndexResponse response = client.index(request, RequestOptions.DEFAULT);
-//            assertTrue(response.result().equals(Result.Created));
-//        } catch (final OpenSearchException e) {
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
-//    }
-//
-//    @Test
-//    public void testAttemptRemoveUnchangeableProperty() throws Exception
-//    {
-//        LOGGER.info("Running test 'testAttemptRemoveUnchangeableProperty'...");
-//        final String templateName = "sample-template";
-//        final String origTemplateSourceFile = "/template12.json";
-//        /*
-//         * PROCESSING_TIME: format param removed
-//         * ADD_PROCESSING_TIME: format param added
-//         * nested field PROCESSING/ID: null_value param removed
-//         * nested field PROCESSING/P_TIME: format param removed
-//         * nested field PROCESSING/REF: ignore_malformed param removed
-//         * nested field PROCESSING/CODE: ignore_malformed param added
-//         */
-//        final String updatedTemplateSourceFile = "/template13.json";
-//        final String indexName = "test_blue-000001";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testAttemptRemoveUnchangeableProperty - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testAttemptRemoveUnchangeableProperty - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
-//                + "'IS_HEAD_OF_FAMILY':true," + "'PROCESSING_TIME': 1610098464" + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        final boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testAttemptRemoveUnchangeableProperty - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testAttemptRemoveUnchangeableProperty - Updating indexes matching template {}", templateName);
-//        updateIndex("testAttemptRemoveUnchangeableProperty", templateName);
-//
-//        // Verify index mapping has new properties
-//        final Map<String, Object> indexTypeMappings = getIndexMapping("testAttemptRemoveUnchangeableProperty", indexName);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propMapping = (Map<String, Object>) props.get("PROCESSING_TIME");
-//        // Verify param not removed (unsupported change)
-//        assertTrue(propMapping.containsKey("format"));
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop2Mapping = (Map<String, Object>) props.get("ADD_PROCESSING_TIME");
-//        // Verify param not added (unsupported change)
-//        assertFalse(prop2Mapping.containsKey("format"));
-//
-//        // Verify index mapping of unsupported field changes has been updated with allowed changes
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> processingPropMapping = (Map<String, Object>) props.get("PROCESSING");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> processingProps = (Map<String, Object>) processingPropMapping.get("properties");
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propIdMapping = (Map<String, Object>) processingProps.get("ID");
-//        // Verify param not removed (change not allowed)
-//        assertTrue(propIdMapping.containsKey("null_value"));
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> pTimeMapping = (Map<String, Object>) processingProps.get("P_TIME");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", pTimeMapping);
-//        // Verify unsupported change to nested property is not applied, param not removed
-//        final Object propFormatValue = pTimeMapping.get("format");
-//        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", propFormatValue);
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> refMapping = (Map<String, Object>) processingProps.get("REF");
-//        // Verify change to nested property is applied, param removed
-//        final Object propIgnoreMalformed = refMapping.get("ignore_malformed");
-//        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", propIgnoreMalformed);
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> codeMapping = (Map<String, Object>) processingProps.get("CODE");
-//        // Verify change to nested property is applied, param added
-//        final Boolean propIgnoreMalformed2 = (Boolean) codeMapping.get("ignore_malformed");
-//        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", propIgnoreMalformed2);
-//
-//    }
-//
-//    @Test
-//    public void testRemoveParams() throws Exception
-//    {
-//        LOGGER.info("Running test 'testRemoveParams'...");
-//        final String templateName = "prop-rem-template";
-//        final String origTemplateSourceFile = "/template14.json";
-//        final String updatedTemplateSourceFile = "/template15.json";
-//        final String indexName = "test_violet-000001";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testRemoveParams - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testRemoveParams - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        String jsonString = "{" + "'message':'doc1'," + "'status_code\":'complete'," + "'session_id':'44gdfg67',"
-//                + "'textdata1':'some text data'," + "'number_two': 16100" + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        final boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testRemoveParams - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testRemoveParams - Updating indexes matching template {}", templateName);
-//        updateIndex("testRemoveParams", templateName);
-//
-//        final Map<String, Object> indexTypeMappings = getIndexMapping("testRemoveParams", indexName);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
-//
-//        // Verify params are not removed even though removal is allowed
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop10Mapping = (Map<String, Object>) props.get("title_y");
-//        assertFalse(prop10Mapping.containsKey("boost")); // has been removed
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop1Mapping = (Map<String, Object>) props.get("number_two");
-//        assertFalse(prop1Mapping.containsKey("coerce")); // has been removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop16Mapping = (Map<String, Object>) props.get("first_name");
-//        assertTrue(prop16Mapping.containsKey("copy_to"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop17Mapping = (Map<String, Object>) props.get("tags");
-//        assertFalse(prop17Mapping.containsKey("eager_global_ordinals")); // has been removed
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop18Mapping = (Map<String, Object>) props.get("titlew");
-//        assertFalse(prop18Mapping.containsKey("fielddata")); // has been removed
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop19Mapping = (Map<String, Object>) props.get("city");
-//        assertTrue(prop19Mapping.containsKey("fields"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop3Mapping = (Map<String, Object>) props.get("message");
-//        assertFalse(prop3Mapping.containsKey("ignore_above")); // has been removed
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop4Mapping = (Map<String, Object>) props.get("number_one");
-//        assertFalse(prop4Mapping.containsKey("ignore_malformed")); // has been removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop20Mapping = (Map<String, Object>) props.get("dummy_message2");
-//        assertTrue(prop20Mapping.containsKey("index_options")); // has not been removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop24Mapping = (Map<String, Object>) props.get("latency");
-//        assertTrue(prop24Mapping.containsKey("meta"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop5Mapping = (Map<String, Object>) props.get("status_code");
-//        assertTrue(prop5Mapping.containsKey("null_value")); // not removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop27Mapping = (Map<String, Object>) props.get("names2");
-//        assertTrue(prop27Mapping.containsKey("position_increment_gap"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop28Mapping = (Map<String, Object>) props.get("manager");
-//        assertTrue(prop28Mapping.containsKey("properties"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop6Mapping = (Map<String, Object>) props.get("title_z");
-//        assertTrue(prop6Mapping.containsKey("search_analyzer"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop7Mapping = (Map<String, Object>) props.get("title_m");
-//        assertTrue(prop7Mapping.containsKey("search_quote_analyzer"));
-//
-//        // Verify params not removed for those that are not allowed
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop8Mapping = (Map<String, Object>) props.get("session_id");
-//        assertTrue(prop8Mapping.containsKey("doc_values"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop9Mapping = (Map<String, Object>) props.get("some_content");
-//        assertTrue(prop9Mapping.containsKey("store"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop11Mapping = (Map<String, Object>) props.get("session_data");
-//        assertTrue(prop11Mapping.containsKey("enabled"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop12Mapping = (Map<String, Object>) props.get("date");
-//        assertTrue(prop12Mapping.containsKey("format"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop13Mapping = (Map<String, Object>) props.get("boolean_sim_field");
-//        assertTrue(prop13Mapping.containsKey("similarity"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop14Mapping = (Map<String, Object>) props.get("some_content2");
-//        assertTrue(prop14Mapping.containsKey("term_vector"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop15Mapping = (Map<String, Object>) props.get("title_m");
-//        assertTrue(prop15Mapping.containsKey("analyzer"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop21Mapping = (Map<String, Object>) props.get("textdata1");
-//        assertTrue(prop21Mapping.containsKey("index_phrases"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop22Mapping = (Map<String, Object>) props.get("body_text");
-//        assertTrue(prop22Mapping.containsKey("index_prefixes"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop23Mapping = (Map<String, Object>) props.get("dummy_message");
-//        assertTrue(prop23Mapping.containsKey("index"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop25Mapping = (Map<String, Object>) props.get("foo");
-//        assertTrue(prop25Mapping.containsKey("normalizer"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop26Mapping = (Map<String, Object>) props.get("titlex");
-//        assertTrue(prop26Mapping.containsKey("norms"));
-//
-//    }
-//
-//    @Test
-//    public void testAddParams() throws Exception
-//    {
-//        LOGGER.info("Running test 'testAddParams'...");
-//        final String templateName = "prop-add-template";
-//        final String origTemplateSourceFile = "/template16.json";
-//        final String updatedTemplateSourceFile = "/template17.json";
-//        final String indexName = "test_pink-000001";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testAddParams - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testAddParams - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        String jsonString = "{" + "'message':'doc1'," + "'status_code\":'complete'," + "'session_id':'44gdfg67',"
-//                + "'textdata1':'some text data'," + "'number_two': 16100" + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        final boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testAddParams - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testAddParams - Updating indexes matching template {}", templateName);
-//        updateIndex("testAddParams", templateName);
-//
-//        final Map<String, Object> indexTypeMappings = getIndexMapping("testAddParams", indexName);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
-//
-//        // Verify params are added when addition is allowed
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop10Mapping = (Map<String, Object>) props.get("title_y");
-//        assertTrue(prop10Mapping.containsKey("boost"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop1Mapping = (Map<String, Object>) props.get("number_two");
-//        assertTrue(prop1Mapping.containsKey("coerce"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop16Mapping = (Map<String, Object>) props.get("first_name");
-//        assertTrue(prop16Mapping.containsKey("copy_to"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop17Mapping = (Map<String, Object>) props.get("tags");
-//        assertTrue(prop17Mapping.containsKey("eager_global_ordinals"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop18Mapping = (Map<String, Object>) props.get("titlew");
-//        assertTrue(prop18Mapping.containsKey("fielddata"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop19Mapping = (Map<String, Object>) props.get("city");
-//        assertFalse(prop19Mapping.containsKey("fields")); // has not been added
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop3Mapping = (Map<String, Object>) props.get("message");
-//        assertTrue(prop3Mapping.containsKey("ignore_above"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop4Mapping = (Map<String, Object>) props.get("number_one");
-//        assertTrue(prop4Mapping.containsKey("ignore_malformed"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop20Mapping = (Map<String, Object>) props.get("dummy_message2");
-//        assertFalse(prop20Mapping.containsKey("index_options")); // has not been added, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop24Mapping = (Map<String, Object>) props.get("latency");
-//        assertFalse(prop24Mapping.containsKey("meta")); // has not been added
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop5Mapping = (Map<String, Object>) props.get("status_code");
-//        assertFalse(prop5Mapping.containsKey("null_value")); // not added, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop27Mapping = (Map<String, Object>) props.get("names2");
-//        assertFalse(prop27Mapping.containsKey("position_increment_gap")); // not added, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop28Mapping = (Map<String, Object>) props.get("manager");
-//        assertFalse(prop28Mapping.containsKey("properties")); // has not been added
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop6Mapping = (Map<String, Object>) props.get("title_z");
-//        assertTrue(prop6Mapping.containsKey("search_analyzer"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop7Mapping = (Map<String, Object>) props.get("title_m");
-//        assertFalse(prop7Mapping.containsKey("search_quote_analyzer")); // has not been added
-//
-//        // Verify params not added for those that are not allowed
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop8Mapping = (Map<String, Object>) props.get("session_id");
-//        assertFalse(prop8Mapping.containsKey("doc_values"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop9Mapping = (Map<String, Object>) props.get("some_content");
-//        assertFalse(prop9Mapping.containsKey("store"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop11Mapping = (Map<String, Object>) props.get("session_data");
-//        assertFalse(prop11Mapping.containsKey("enabled"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop12Mapping = (Map<String, Object>) props.get("date");
-//        assertFalse(prop12Mapping.containsKey("format"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop13Mapping = (Map<String, Object>) props.get("boolean_sim_field");
-//        assertFalse(prop13Mapping.containsKey("similarity"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop14Mapping = (Map<String, Object>) props.get("some_content2");
-//        assertFalse(prop14Mapping.containsKey("term_vector"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop15Mapping = (Map<String, Object>) props.get("title_m");
-//        assertFalse(prop15Mapping.containsKey("analyzer"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop21Mapping = (Map<String, Object>) props.get("textdata1");
-//        assertFalse(prop21Mapping.containsKey("index_phrases"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop22Mapping = (Map<String, Object>) props.get("body_text");
-//        assertFalse(prop22Mapping.containsKey("index_prefixes"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop23Mapping = (Map<String, Object>) props.get("dummy_message");
-//        assertFalse(prop23Mapping.containsKey("index"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop25Mapping = (Map<String, Object>) props.get("foo");
-//        assertFalse(prop25Mapping.containsKey("normalizer"));
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop26Mapping = (Map<String, Object>) props.get("titlex");
-//        assertFalse(prop26Mapping.containsKey("norms"));
-//
-//    }
-//
-//    @Test
-//    public void testAddRemoveParams() throws Exception
-//    {
-//        LOGGER.info("Running test 'testAddRemoveParams'...");
-//        final String templateName = "prop-add-template";
-//        final String origTemplateSourceFile = "/template18.json";
-//        final String updatedTemplateSourceFile = "/template19.json";
-//        final String indexName = "test_green-000001";
-//
-//        final String origTemplateSource = readFile(origTemplateSourceFile);
-//        LOGGER.info("testAddRemoveParams - Creating initial template {}", templateName);
-//
-//        // Create a template
-//        final PutIndexTemplateRequest trequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse putTemplateResponse = client.indices().putIndexTemplate(trequest);
-//        if (!putTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//        LOGGER.info("testAddRemoveParams - Creating index matching template {}", templateName);
-//        // Create an index with some data
-//        IndexRequest.Builder<JsonData> request = new IndexRequest.Builder<JsonData>()
-//            .index(indexName)
-//            .id("1")
-//            .routing("1");
-//        String jsonString = "{" + "'some_content2':'doc1'" + "}";
-//        jsonString = jsonString.replaceAll("'", "\"");
-//        request.source(jsonString, XContentType.JSON);
-//        request.refresh(Refresh.True);
-//        final boolean needsRetries = indexDocumentWithRetry(request.build());
-//        if (needsRetries) {
-//            // Indexing has failed after multiple retries
-//            fail();
-//        }
-//
-//        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
-//
-//        LOGGER.info("testAddRemoveParams - Updating template {}", templateName);
-//        final String updatedTemplateSource = readFile(updatedTemplateSourceFile);
-//        // Create a template
-//        final PutIndexTemplateRequest utrequest = new PutIndexTemplateRequest.Builder()
-//            .name(templateName)
-//            //figure out source
-//            .build();
-//            
-//        final PutIndexTemplateResponse updateTemplateResponse = client.indices().putIndexTemplate(utrequest);
-//        if (!updateTemplateResponse.acknowledged()) {
-//            fail();
-//        }
-//
-//        LOGGER.info("testAddRemoveParams - Updating indexes matching template {}", templateName);
-//        updateIndex("testAddRemoveParams", templateName);
-//
-//        final Map<String, Object> indexTypeMappings = getIndexMapping("testAddRemoveParams", indexName);
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> props = (Map<String, Object>) indexTypeMappings.get("properties");
-//
-//        // Verify params are added when addition is allowed
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propProcessing = (Map<String, Object>) props.get("PROCESSING");
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propProcessingMappings = (Map<String, Object>) propProcessing.get("properties");
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propOtherProps = (Map<String, Object>) propProcessingMappings.get("OTHER_PROPS");
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propOtherPropsMappings = (Map<String, Object>) propOtherProps.get("properties");
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop10Mapping = (Map<String, Object>) propOtherPropsMappings.get("status_code");
-//        assertFalse(prop10Mapping.containsKey("null_value")); // not added, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop11Mapping = (Map<String, Object>) propOtherPropsMappings.get("BODY_TEXT");
-//        assertTrue(prop11Mapping.containsKey("index_prefixes")); // not removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop12Mapping = (Map<String, Object>) propOtherPropsMappings.get("REF");
-//        assertFalse(prop12Mapping.containsKey("ignore_malformed")); // removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> prop13Mapping = (Map<String, Object>) propOtherPropsMappings.get("some_date");
-//        assertFalse(prop13Mapping.containsKey("format")); // not added, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propId = (Map<String, Object>) propProcessingMappings.get("ID");
-//        assertFalse(propId.containsKey("eager_global_ordinals")); // not added, unexpected (can be removed but not added?)
-//        assertTrue(propId.containsKey("ignore_above"));
-//        assertTrue(propId.containsKey("null_value")); // not removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propLang = (Map<String, Object>) props.get("LANGUAGE_CODES");
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propLangMappings = (Map<String, Object>) propLang.get("properties");
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propCodeMapping = (Map<String, Object>) propLangMappings.get("CODE");
-//        assertFalse(propCodeMapping.containsKey("ignore_above")); // removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propConfMapping = (Map<String, Object>) propLangMappings.get("CONFIDENCE");
-//        assertTrue(propConfMapping.containsKey("normalizer")); // not removed, as expected
-//
-//        @SuppressWarnings("unchecked")
-//        final Map<String, Object> propTxtMapping = (Map<String, Object>) propLangMappings.get("textdata1");
-//        assertFalse(propTxtMapping.containsKey("index_phrases")); // not added, as expected
-//
-//    }
-//
+        LOGGER.info("testUpdateUnsupportedChanges - Creating initial template {}", templateName);
+
+        putIndexTemplate(templateName, origTemplateSourceFile);
+        
+        LOGGER.info("testUpdateUnsupportedChanges - Creating index matching template {}", templateName);
+        
+        String jsonString = "{"
+            + "'TITLE':'doc1',"
+            + "'DATE_PROCESSED\":'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person1' }"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "1", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+
+        LOGGER.info("testUpdateUnsupportedChanges - Updating template {}", templateName);
+        
+        putIndexTemplate(templateName, unsupportedTemplateSourceFile);
+
+        LOGGER.info("testUpdateUnsupportedChanges - Updating indexes matching template {}", templateName);
+        // Unsupported mapping changes not applied to Index mapping
+        updateIndex("testUpdateUnsupportedChanges", templateName);
+
+        // Verify index mapping of unsupported field changes has not changed
+        final TypeMapping indexTypeMappings = getIndexMapping("testUpdateUnsupportedChanges", indexName);
+        
+        final Property headOfFamilyProp = indexTypeMappings.properties().get("IS_HEAD_OF_FAMILY");
+        // Verify property mapping value is same as before
+        assertTrue("testUpdateUnsupportedChanges", headOfFamilyProp._kind().toString().equals("Boolean"));
+        final Object propIgnoreMalformed = headOfFamilyProp.boolean_().properties().get("ignore_malformed");
+        // Verify new param was not added
+        assertNull("testUpdateUnsupportedChanges", propIgnoreMalformed);
+
+        final Property failuresProp = indexTypeMappings.properties().get("FAILURES");
+        final Property jrIdProp = failuresProp.object().properties().get("AJP_JOB_RUN_ID");
+        // Verify type is same as before
+        assertTrue("testUpdateUnsupportedChanges", jrIdProp._kind().toString().equals("Keyword"));
+        // Verify param not removed
+        final Object propjrIdIgnoreAbove = jrIdProp.keyword().ignoreAbove();
+        assertNotNull("testUpdateUnsupportedChanges", propjrIdIgnoreAbove);
+        // Verify param not added
+        final Object propjrIdIgnoreMalformed = jrIdProp.keyword().properties().get("ignore_malformed");
+        assertNull("testUpdateUnsupportedChanges", propjrIdIgnoreMalformed);
+
+        final Property propLC =  indexTypeMappings.properties().get("LANGUAGE_CODES");
+        // Verify type was not changed
+        assertTrue("testUpdateUnsupportedChanges", propLC._kind().toString().equals("Object"));
+        final Object propLCIncludeInParent = propLC.object().properties().get("include_in_parent");
+        // Verify new param was not added
+        assertNull("testUpdateUnsupportedChanges", propLCIncludeInParent);
+
+        // Verify index mapping of allowed field changes has been updated
+        final Property personProp = indexTypeMappings.properties().get("PERSON");
+        final Property ageProp = personProp.object().properties().get("AGE");
+        assertTrue("testUpdateUnsupportedChanges", ageProp._kind().toString().equals("Long"));
+    }
+
+    @Test
+    public void testUpdateDynamicTemplateOverwrite() throws IOException, GetIndexException, InterruptedException
+    {
+        LOGGER.info("Running test 'testUpdateDynamicTemplateOverwrite'...");
+        final String templateName = "sample-template";
+        // This template has a dynamic_template called "EVERY_THING_ELSE_TEMPLATE"
+        final String origTemplateSourceFile = "/template5.json";
+        /* This template has a dynamic_template called "LONG_TEMPLATE"
+         * New simple prop STACK added to prop FAILURES
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * New date prop DATE_DISPOSED added
+         */
+        final String updatedTemplateSourceFile = "/template6.json";
+        final String indexName = "test_dynsample-000001";
+
+        LOGGER.info("testUpdateDynamicTemplateOverwrite - Creating initial template {}", templateName);
+
+        // Create a template
+        putIndexTemplate(templateName, origTemplateSourceFile);
+            
+        LOGGER.info("testUpdateDynamicTemplateOverwrite - Creating index matching template {}", templateName);
+        // Create an index with some data
+        String jsonString = "{"
+            + "'TITLE':'doc1',"
+            + "'DATE_PROCESSED\":'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person1' }"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "1", "1", jsonString);
+        
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+
+        LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating template {}", templateName);
+        // Create a template
+        putIndexTemplate(templateName, updatedTemplateSourceFile);
+
+        LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating indexes matching template {}", templateName);
+        
+        updateIndex("testUpdateDynamicTemplateOverwrite", templateName);
+
+        // Verify updated index mapping has only one dynamic_template from the new index template
+        final TypeMapping indexTypeMappings = getIndexMapping("testUpdateDynamicTemplateOverwrite", indexName);
+        
+        final List<Map<String, DynamicTemplate>> dynamicTemplatesInTemplate = indexTypeMappings.dynamicTemplates();
+        if (dynamicTemplatesInTemplate == null) {
+            fail();
+        } else {
+            final Map<String, DynamicTemplate> dynTemplate = dynamicTemplatesInTemplate.get(0);
+            assertTrue("testUpdateDynamicTemplateOverwrite", dynamicTemplatesInTemplate.size() == 1);
+            assertNotNull("testUpdateDynamicTemplateOverwrite", dynTemplate.get("LONG_TEMPLATE"));
+        }
+
+        // Index more data
+        jsonString = "{"
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "2", "1", jsonString);
+        
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
+    }
+
+    @Test
+    public void testNoIndexesMatchingTemplate() throws IOException
+    {
+        LOGGER.info("Running test 'testNoIndexesMatchingTemplate'...");
+        final String templateName = ".kibana_task_manager";
+        /*
+         * This template has "index_patterns" that would not match any indexes
+         */
+        final String origTemplateSourceFile = "/template7.json";
+
+        LOGGER.info("testNoIndexesMatchingTemplate - Creating initial template {}", templateName);
+
+        // Create a template
+        putIndexTemplate(templateName, origTemplateSourceFile);
+
+        // Try updating indexes for template that has no matching indexes
+        LOGGER.info("testNoIndexesMatchingTemplate - Updating indexes matching template {}", templateName);
+
+        updateIndex("testNoIndexesMatchingTemplate", templateName);
+    }
+
+    @Test
+    public void testUpdateIndexesOfUnSupportedChangesInTemplate() throws IOException, GetIndexException, InterruptedException
+    {
+        LOGGER.info("Running test 'testUpdateIndexesOfUnSupportedChangesInTemplate'...");
+        final String templateName = "sample-template";
+        final String origTemplateSourceFile = "/template8.json";
+        /*
+         * Dynamic templates removed
+         * 'strict' mapping introduced
+         * New simple prop STACK added to prop FAILURES
+         * New object prop MATCH added to prop ENTITIES
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * New date prop DATE_DISPOSED added
+         * ID: ignore_malformed removed
+         * LANGUAGE_CODES: type changed to object, i.e. "type" removed, "include_in_parent" removed
+         * New nested prop added to existing field TARGET_REFERENCES/DESTINATION_ID
+         * TARGET_REFERENCES/TARGET_REFERENCE ignore_above and doc_values removed
+         */
+        final String updatedTemplateSourceFile = "/template9.json";
+        final String indexName = "foo-com_lang-000001";
+
+        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Creating initial template {}", templateName);
+
+        // Create a template
+        putIndexTemplate(templateName, origTemplateSourceFile);
+
+        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Creating index matching template {}", templateName);
+        // Create an index with some data
+        String jsonString = "{"
+            + "'TITLE':'doc1',"
+            + "'DATE_PROCESSED\":'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person1' },"
+            + "'LANGUAGE_CODES':{ 'CODE':'en', 'CONFIDENCE': 100}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "1", "1", jsonString);
+        
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+
+        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Updating template {}", templateName);
+        // Create a template
+        putIndexTemplate(templateName, updatedTemplateSourceFile);
+
+        LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Updating indexes matching template {}", templateName);
+        updateIndex("testUpdateIndexesOfUnSupportedChangesInTemplate", templateName);
+
+        // Verify index mapping has new properties
+        final TypeMapping indexTypeMappings = getIndexMapping("testUpdateIndexesOfUnSupportedChangesInTemplate", indexName);
+        
+        final Map<String, Property> props = indexTypeMappings.properties();
+        final Property dateDisposedProp = props.get("DATE_DISPOSED");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", dateDisposedProp);
+
+        // Verify allowed field changes has updated field mapping
+        final Property idProp =  props.get("ID");
+        LOGGER.info("idProp {} ", idProp);
+        final Object idPropValue = idProp.long_().properties().get("ignore_malformed");
+        // Verify property mapping parameter was removed
+        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", idPropValue);
+
+        // Verify index mapping of unsupported field changes has not changed
+        final Property langProp = props.get("LANGUAGE_CODES");
+        // Verify property mapping value is same as before
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", langProp._kind().toString().equals("Nested"));
+
+        // Verify index mapping of unsupported field changes has been updated with allowed changes
+        final Property targetRefProp = props.get("TARGET_REFERENCES");
+        final Map<String, Property> targetRefProps = targetRefProp.object().properties();
+        // Verify new property is added
+        final Property tRefMapping = targetRefProps.get("TARGET_REFERENCE");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", tRefMapping);
+        // Verify unsupported change to nested property is not applied
+        final Boolean propDocValuesValue = tRefMapping.keyword().docValues();
+        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", propDocValuesValue);
+        // Verify change to nested property is not applied, param not removed
+        final Integer propIgnoreAboveValue = tRefMapping.keyword().ignoreAbove();
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", 10922 == propIgnoreAboveValue);
+        // Verify new nested property is added
+        final Property destProp = targetRefProps.get("DESTINATION_ID");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", destProp);
+
+        // Index more data
+        jsonString = "{"
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'},"
+            + "'LANGUAGE_CODES':{ 'CODE':'ko', 'CONFIDENCE': 100}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        createIndex(indexName, "2", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
+    }
+
+    @Test
+    public void testUpdateIndexesWithNestedFieldChanges() throws IOException, GetIndexException, InterruptedException
+    {
+        LOGGER.info("Running test 'testUpdateIndexesWithNestedFieldChanges'...");
+        final String templateName = "sample-template";
+        final String origTemplateSourceFile = "/template10.json";
+        /*
+         * * Dynamic templates removed
+         * 'strict' mapping introduced
+         * New simple prop AGE added to prop PERSON
+         * New nested prop HOLD_DETAILS added
+         * ENTITIES/GRAMMAR_ID null_value param added
+         * New date type prop DATE_DISPOSED added
+         * 'store' and ignore_above param removed from nested property LANGUAGE_CODES/CODE
+         * 'store' param removed from nested property LANGUAGE_CODES/CONFIDENCE
+         * nested property type='nested' is removed from LANGUAGE_CODES
+         * include_in_parent param removed from LANGUAGE_CODES
+         */
+        final String updatedTemplateSourceFile = "/template11.json";
+        final String indexName = "jan_blue-000001";
+
+        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Creating initial template {}", templateName);
+
+        // Create a template
+        putIndexTemplate(templateName, origTemplateSourceFile);
+            
+        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Creating index matching template {}", templateName);
+        // Create an index with some data
+        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true," + "'PERSON':{ 'NAME':'person1' }" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "1", "1", jsonString);
+       
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+
+        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Updating template {}", templateName);
+        // Create a template
+        putIndexTemplate(templateName, updatedTemplateSourceFile);
+
+        LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Updating indexes matching template {}", templateName);
+        updateIndex("testUpdateIndexesWithNestedFieldChanges", templateName);
+
+        // Verify index mapping has new properties
+        final TypeMapping indexTypeMappings = getIndexMapping("testUpdateIndexesWithNestedFieldChanges", indexName);
+        final Map<String, Property> props =  indexTypeMappings.properties();
+        
+        final Property dateDisposedProp =  props.get("DATE_DISPOSED");
+        assertNotNull("testUpdateIndexesWithNestedFieldChanges", dateDisposedProp);
+        
+        final Property entitiesProp = props.get("ENTITIES");
+        LOGGER.info("entitiesPropMapping {} ", entitiesProp);
+        final Map<String, Property> entitiesProps = entitiesProp.object().properties();
+        final Property grammarIdProp =  entitiesProps.get("GRAMMAR_ID");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", grammarIdProp);
+        // Verify change to nested property is applied, param not added (change not allowed)
+        final Object nullValueProp = grammarIdProp.keyword().nullValue();
+        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", nullValueProp);
+
+        // Verify index mapping of unsupported field changes to nested property has not changed
+        final Property langProp = props.get("LANGUAGE_CODES");
+        // Verify property mapping type and params are same as before
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", langProp._kind().toString().equals("Nested"));
+        final Boolean includeInParentProp = langProp.nested().includeInParent();
+        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", includeInParentProp);
+
+        final Map<String, Property> langProps = langProp.nested().properties();
+        // Verify new property is added
+        final Property codeProp = langProps.get("CODE");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", codeProp);
+        // Verify unsupported change to nested property is not applied, param not removed
+        final Object codeStoreProp = codeProp.keyword().store();
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", codeStoreProp);
+        // Verify change to nested property is not applied, param not removed
+        final Object ignoreAboveProp = codeProp.keyword().ignoreAbove();
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", ignoreAboveProp);
+
+        final Property confidenceProp = langProps.get("CONFIDENCE");
+        // Verify unsupported change to nested property is not applied, param not removed
+        final Object confidenceStoreProp = confidenceProp.double_().store();
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", confidenceStoreProp);
+
+        // Index more data
+        jsonString = "{"
+            + "'TITLE':'doc2',"
+            + "'DATE_PROCESSED':'2020-02-11',"
+            + "'CONTENT_PRIMARY':'just a test',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'PERSON':{ 'NAME':'person2', 'AGE':5 },"
+            + "'HOLD_DETAILS': {'FIRST_HELD_DATE':'2020-02-11', 'HOLD_HISTORY': '2020-02-11', 'HOLD_ID': '12'}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "2", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
+    }
+
+    @Test
+    public void testAttemptRemoveUnchangeableProperty() throws Exception
+    {
+        LOGGER.info("Running test 'testAttemptRemoveUnchangeableProperty'...");
+        final String templateName = "sample-template";
+        final String origTemplateSourceFile = "/template12.json";
+        /*
+         * PROCESSING_TIME: format param removed
+         * ADD_PROCESSING_TIME: format param added
+         * nested field PROCESSING/ID: null_value param removed
+         * nested field PROCESSING/P_TIME: format param removed
+         * nested field PROCESSING/REF: ignore_malformed param removed
+         * nested field PROCESSING/CODE: ignore_malformed param added
+         */
+        final String updatedTemplateSourceFile = "/template13.json";
+        final String indexName = "test_blue-000001";
+
+        LOGGER.info("testAttemptRemoveUnchangeableProperty - Creating initial template {}", templateName);
+
+        // Create a template
+        putIndexTemplate(templateName, origTemplateSourceFile);
+            
+        LOGGER.info("testAttemptRemoveUnchangeableProperty - Creating index matching template {}", templateName);
+        // Create an index with some data
+        String jsonString = "{" + "'TITLE':'doc1'," + "'DATE_PROCESSED\":'2020-02-11'," + "'CONTENT_PRIMARY':'just a test',"
+                + "'IS_HEAD_OF_FAMILY':true," + "'PROCESSING_TIME': 1610098464" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "1", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+
+        LOGGER.info("testAttemptRemoveUnchangeableProperty - Updating template {}", templateName);
+        // Create a template
+        putIndexTemplate(templateName, updatedTemplateSourceFile);
+
+        LOGGER.info("testAttemptRemoveUnchangeableProperty - Updating indexes matching template {}", templateName);
+        updateIndex("testAttemptRemoveUnchangeableProperty", templateName);
+
+        // Verify index mapping has new properties
+        final TypeMapping indexTypeMappings = getIndexMapping("testAttemptRemoveUnchangeableProperty", indexName);
+        @SuppressWarnings("unchecked")
+        final Map<String, Property> props =  indexTypeMappings.properties();
+        final Property processingTimeProp = props.get("PROCESSING_TIME");
+        // Verify param not removed (unsupported change)
+        assertNotNull(processingTimeProp.date().format());
+        
+        final Property addProcessingTimeProp = props.get("ADD_PROCESSING_TIME");
+        // Verify param not added (unsupported change)
+        assertNull(addProcessingTimeProp.date().format());
+
+        // Verify index mapping of unsupported field changes has been updated with allowed changes
+        final Property processingProp = props.get("PROCESSING");
+        final Map<String, Property> processingProps = processingProp.object().properties();
+        final Property idProp = processingProps.get("ID");
+        // Verify param not removed (change not allowed)
+        assertNotNull(idProp.keyword().nullValue());
+        final Property pTimeProp = processingProps.get("P_TIME");
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", pTimeProp);
+        // Verify unsupported change to nested property is not applied, param not removed
+        final Object propFormatValue = pTimeProp.date().format();
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", propFormatValue);
+
+        final Property refProp = processingProps.get("REF");
+        // Verify change to nested property is applied, param removed
+        final Object refIgnoreMalformedProp = refProp.integer().ignoreMalformed();
+        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", refIgnoreMalformedProp);
+
+        final Property codeProp = processingProps.get("CODE");
+        // Verify change to nested property is applied, param added
+        final Boolean codeIgnoreMalformedProp = codeProp.integer().ignoreMalformed();
+        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", codeIgnoreMalformedProp);
+    }
+
+    @Test
+    public void testRemoveParams() throws Exception
+    {
+        LOGGER.info("Running test 'testRemoveParams'...");
+        final String templateName = "prop-rem-template";
+        final String origTemplateSourceFile = "/template14.json";
+        final String updatedTemplateSourceFile = "/template15.json";
+        final String indexName = "test_violet-000001";
+
+        LOGGER.info("testRemoveParams - Creating initial template {}", templateName);
+
+        // Create a template
+        putIndexTemplate(templateName, origTemplateSourceFile);
+        
+        LOGGER.info("testRemoveParams - Creating index matching template {}", templateName);
+        // Create an index with some data
+        String jsonString = "{" + "'message':'doc1'," + "'status_code\":'complete'," + "'session_id':'44gdfg67',"
+                + "'textdata1':'some text data'," + "'number_two': 16100" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "1", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+
+        LOGGER.info("testRemoveParams - Updating template {}", templateName);
+        // Create a template
+        putIndexTemplate(templateName, updatedTemplateSourceFile);
+
+        LOGGER.info("testRemoveParams - Updating indexes matching template {}", templateName);
+        updateIndex("testRemoveParams", templateName);
+
+        final TypeMapping indexTypeMappings = getIndexMapping("testRemoveParams", indexName);
+        final Map<String, Property> props = indexTypeMappings.properties();
+
+        // Verify params are not removed even though removal is allowed
+        final Property titleYProp = props.get("title_y");
+        assertNull(titleYProp.text().boost()); // has been removed
+
+        final Property numberTwoProp = props.get("number_two");
+        assertNull(numberTwoProp.integer().coerce()); // has been removed, as expected
+
+        final Property firstNameProp = props.get("first_name");
+        assertFalse(firstNameProp.text().copyTo().isEmpty());
+
+        final Property tagsProp = props.get("tags");
+        assertNull(tagsProp.keyword().eagerGlobalOrdinals()); // has been removed
+
+        final Property titleWProp = props.get("titlew");
+        assertNull(titleWProp.text().fielddata()); // has been removed
+
+        final Property cityProp = props.get("city");
+        assertFalse(cityProp.text().fields().isEmpty());
+
+        final Property messageProp = props.get("message");
+        assertNull(messageProp.keyword().ignoreAbove()); // has been removed
+
+        final Property numberOneProp = props.get("number_one");
+        assertNull(numberOneProp.integer().ignoreMalformed()); // has been removed, as expected
+
+        final Property dummyMessage2Prop = props.get("dummy_message2");
+        assertNotNull(dummyMessage2Prop.text().indexOptions()); // has not been removed, as expected
+
+        final Property latencyProp = props.get("latency");
+        assertFalse(latencyProp.long_().meta().isEmpty());
+
+        final Property statusCodeProp = props.get("status_code");
+        assertNotNull(statusCodeProp.keyword().nullValue()); // not removed, as expected
+
+        final Property names2Mapping = props.get("names2");
+        assertNotNull(names2Mapping.text().positionIncrementGap());
+
+        final Property managerProp = props.get("manager");
+        assertFalse(managerProp.object().properties().isEmpty());
+
+        final Property titleZProp = props.get("title_z");
+        assertNull(titleZProp.text().searchAnalyzer());
+
+        final Property titleMProp = props.get("title_m");
+        assertNotNull(titleMProp.text().searchQuoteAnalyzer());
+        assertNotNull(titleMProp.text().analyzer());
+
+        // Verify params not removed for those that are not allowed
+        final Property sessionIdProp = props.get("session_id");
+        assertNotNull(sessionIdProp.keyword().docValues());
+
+        final Property someContentProp = props.get("some_content");
+        assertNotNull(someContentProp.text().store());
+
+        final Property sessionDataProp = props.get("session_data");
+        assertNotNull(sessionDataProp.object().enabled());
+
+        final Property dateProp = props.get("date");
+        assertNotNull(dateProp.date().format());
+
+        final Property booleanSimFieldProp = props.get("boolean_sim_field");
+        assertNotNull(booleanSimFieldProp.text().similarity());
+
+        final Property someContent2Prop = props.get("some_content2");
+        assertNotNull(someContent2Prop.text().termVector());
+
+        final Property textData1Prop = props.get("textdata1");
+        assertNotNull(textData1Prop.text().indexPhrases());
+
+        final Property bodyTextProp = props.get("body_text");
+        assertNotNull(bodyTextProp.text().indexPrefixes());
+
+        final Property dummyMessageProp = props.get("dummy_message");
+        assertNotNull(dummyMessageProp.keyword().index());
+
+        final Property fooProp = props.get("foo");
+        assertNotNull(fooProp.keyword().normalizer());
+
+        final Property titleXProp = props.get("titlex");
+        assertNotNull(titleXProp.text().norms());
+    }
+
+    @Test
+    public void testAddParams() throws Exception
+    {
+        LOGGER.info("Running test 'testAddParams'...");
+        final String templateName = "prop-add-template";
+        final String origTemplateSourceFile = "/template16.json";
+        final String updatedTemplateSourceFile = "/template17.json";
+        final String indexName = "test_pink-000001";
+
+        LOGGER.info("testAddParams - Creating initial template {}", templateName);
+
+        // Create a template
+        putIndexTemplate(templateName, origTemplateSourceFile);
+        
+        LOGGER.info("testAddParams - Creating index matching template {}", templateName);
+        // Create an index with some data
+        String jsonString = "{" + "'message':'doc1'," + "'status_code\":'complete'," + "'session_id':'44gdfg67',"
+                + "'textdata1':'some text data'," + "'number_two': 16100" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "1", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+
+        LOGGER.info("testAddParams - Updating template {}", templateName);
+        // Create a template
+        putIndexTemplate(templateName, updatedTemplateSourceFile);
+
+        LOGGER.info("testAddParams - Updating indexes matching template {}", templateName);
+        updateIndex("testAddParams", templateName);
+
+        final TypeMapping indexTypeMappings = getIndexMapping("testAddParams", indexName);
+        final Map<String, Property> props = indexTypeMappings.properties();
+
+        // Verify params are added when addition is allowed
+        final Property titleYProp = props.get("title_y");
+        assertNotNull(titleYProp.text().boost());
+
+        final Property numberTwoProp = props.get("number_two");
+        assertNotNull(numberTwoProp.integer().coerce());
+
+        final Property firstNameProp = props.get("first_name");
+        assertFalse(firstNameProp.text().copyTo().isEmpty());
+
+        final Property tagsProp = props.get("tags");
+        assertNotNull(tagsProp.keyword().eagerGlobalOrdinals());
+
+        final Property prop18Mapping = props.get("titlew");
+        assertNotNull(prop18Mapping.text().fielddata());
+
+        final Property cityProp = props.get("city");
+        assertTrue(cityProp.text().fields().isEmpty()); // has not been added
+
+        final Property messageProp = props.get("message");
+        assertNotNull(messageProp.keyword().ignoreAbove());
+
+        final Property numberOneProp = props.get("number_one");
+        assertNotNull(numberOneProp.integer().ignoreMalformed());
+
+        final Property dummyMessage2Prop = props.get("dummy_message2");
+        assertNull(dummyMessage2Prop.text().indexOptions()); // has not been added, as expected
+
+        final Property latencyProp = props.get("latency");
+        assertTrue(latencyProp.long_().meta().isEmpty()); // has not been added
+
+        final Property statusCodeProp = props.get("status_code");
+        assertNull(statusCodeProp.keyword().nullValue()); // not added, as expected
+
+        final Property names2Prop = props.get("names2");
+        assertNull(names2Prop.text().positionIncrementGap()); // not added, as expected
+
+        final Property managerProp = props.get("manager");
+        assertTrue(managerProp.text().properties().isEmpty()); // has not been added
+
+        final Property titleZProp = props.get("title_z");
+        assertNotNull(titleZProp.text().searchAnalyzer()); //has been removed
+
+        final Property titleMProp = props.get("title_m");
+        assertNull(titleMProp.text().searchQuoteAnalyzer()); // has not been added
+        assertNull(titleMProp.text().analyzer());
+
+        // Verify params not added for those that are not allowed
+        final Property sessionIdProp = props.get("session_id");
+        assertNull(sessionIdProp.keyword().docValues());
+
+        final Property someContentProp = props.get("some_content");
+        assertNull(someContentProp.text().store());
+
+        final Property sessionDataProp = props.get("session_data");
+        assertNull(sessionDataProp.object().enabled());
+
+        final Property dateProp = props.get("date");
+        assertNull(dateProp.date().format());
+
+        final Property booleanSimFieldProp = props.get("boolean_sim_field");
+        assertNull(booleanSimFieldProp.text().similarity());
+
+        final Property someContent2Prop = props.get("some_content2");
+        assertNull(someContent2Prop.text().termVector());
+
+        final Property textData1Prop = props.get("textdata1");
+        assertNull(textData1Prop.text().indexPhrases());
+
+        final Property bodyTextProp = props.get("body_text");
+        assertNull(bodyTextProp.text().indexPrefixes());
+
+        final Property dummyMessageProp = props.get("dummy_message");
+        assertNull(dummyMessageProp.keyword().index());
+
+        final Property fooProp = props.get("foo");
+        assertNull(fooProp.keyword().normalizer());
+
+        final Property titleXProp = props.get("titlex");
+        assertNull(titleXProp.text().norms());
+    }
+
+    @Test
+    public void testAddRemoveParams() throws Exception
+    {
+        LOGGER.info("Running test 'testAddRemoveParams'...");
+        final String templateName = "prop-add-template";
+        final String origTemplateSourceFile = "/template18.json";
+        final String updatedTemplateSourceFile = "/template19.json";
+        final String indexName = "test_green-000001";
+
+        LOGGER.info("testAddRemoveParams - Creating initial template {}", templateName);
+
+        // Create a template
+        putIndexTemplate(templateName, origTemplateSourceFile);
+        
+        LOGGER.info("testAddRemoveParams - Creating index matching template {}", templateName);
+        // Create an index with some data
+        String jsonString = "{" + "'some_content2':'doc1'" + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+        
+        createIndex(indexName, "1", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+
+        LOGGER.info("testAddRemoveParams - Updating template {}", templateName);
+        // Create a template
+        putIndexTemplate(templateName, updatedTemplateSourceFile);
+
+        LOGGER.info("testAddRemoveParams - Updating indexes matching template {}", templateName);
+        updateIndex("testAddRemoveParams", templateName);
+
+        final TypeMapping indexTypeMappings = getIndexMapping("testAddRemoveParams", indexName);
+        final Map<String, Property> props = indexTypeMappings.properties();
+
+        // Verify params are added when addition is allowed
+        final Property processingProp = props.get("PROCESSING");
+
+        final Map<String, Property> processingProps = processingProp.object().properties();
+
+        final Map<String, Property> otherProps = processingProps.get("OTHER_PROPS").object().properties();
+
+        final Property statusCodeProp = otherProps.get("status_code");
+        assertNull(statusCodeProp.keyword().nullValue()); // not added, as expected
+
+        final Property bodyTextProp = otherProps.get("BODY_TEXT");
+        assertNotNull(bodyTextProp.text().indexPrefixes()); // not removed, as expected
+
+        final Property refProp = otherProps.get("REF");
+        assertNull(refProp.integer().ignoreMalformed()); // removed, as expected
+
+        final Property someDateProp = otherProps.get("some_date");
+        assertNull(someDateProp.date().format()); // not added, as expected
+
+        final Property idProp = processingProps.get("ID");
+        assertNull(idProp.keyword().eagerGlobalOrdinals()); // not added, unexpected (can be removed but not added?)
+        assertNotNull(idProp.keyword().ignoreAbove());
+        assertNotNull(idProp.keyword().nullValue()); // not removed, as expected
+
+        final Map<String, Property> languageCodeProps = props.get("LANGUAGE_CODES").object().properties();
+
+        final Property propCodeMapping = languageCodeProps.get("CODE");
+        assertNull(propCodeMapping.keyword().ignoreAbove()); // removed, as expected
+
+        final Property confidenceProp = languageCodeProps.get("CONFIDENCE");
+        assertNotNull(confidenceProp.keyword().normalizer()); // not removed, as expected
+
+        final Property propTxtMapping = languageCodeProps.get("textdata1");
+        assertNull(propTxtMapping.text().indexPhrases()); // not added, as expected
+    }
+
     private void updateIndex(final String testName, final String templateName)
     {
         LOGGER.info("{}: {}", testName, templateName);
@@ -1357,7 +980,7 @@ public final class ElasticMappingUpdaterIT
             fail(testName + ":" + e);
         }
     }
-//
+
     public static String readFile(final String path) throws IOException
     {
         InputStream is = null;

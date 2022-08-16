@@ -1,255 +1,265 @@
 {
-    "settings": {
-        "index": {
-            "number_of_shards": 5,
-            "number_of_replicas": 0,
-            "codec": "best_compression",
-            "refresh_interval": "1s",
-            "max_result_window": "1000000",
-            "merge.scheduler.max_thread_count": 1
-        },
-        "analysis": {
-            "char_filter": {
-                "html_strip_filter": {
-                    "type": "html_strip"
-                }
+    "template": {
+        "settings": {
+            "index": {
+                "number_of_shards": 5,
+                "number_of_replicas": 0,
+                "codec": "best_compression",
+                "refresh_interval": "1s",
+                "max_result_window": "1000000",
+                "merge.scheduler.max_thread_count": 1
             },
-            "filter": {
-                "million_token_limit": {
-                    "type": "limit",
-                    "max_token_count": 1000000
+            "analysis": {
+                "char_filter": {
+                    "html_strip_filter": {
+                        "type": "html_strip"
+                    }
                 },
-                "period_break_filter": {
-                    "type": "pattern_capture",
-                    "preserve_original": false,
-                    "patterns": [
-                        "^([\\\\p{Nd},\\\\.'?]+)$|([^\\\\.']+)"
-                    ]
+                "filter": {
+                    "million_token_limit": {
+                        "type": "limit",
+                        "max_token_count": 1000000,
+                        "consume_all_tokens": false
+                    },
+                    "period_break_filter": {
+                        "type": "pattern_capture",
+                        "preserve_original": false,
+                        "patterns": [
+                            "^([\\\\p{Nd},\\\\.'?]+)$|([^\\\\.']+)"
+                        ],
+                        "consume_all_tokens": false
+                    },
+                    "max_token_length_filter": {
+                        "type": "length",
+                        "min": 0,
+                        "max": 10922,
+                        "consume_all_tokens": false
+                    },
+                    "english_stop": {
+                        "type": "stop",
+                        "stopwords": "_english_"
+                    }
                 },
-                "max_token_length_filter": {
-                    "type": "length",
-                    "max": 10922
+                "analyzer": {
+                    "general_analyzer": {
+                        "type": "custom",
+                        "filter": [
+                            "million_token_limit",
+                            "max_token_length_filter",
+                            "icu_normalizer"
+                        ],
+                        "char_filter": [],
+                        "tokenizer": "icu_tokenizer"
+                    },
+                    "path_analyzer": {
+                        "type": "custom",
+                        "tokenizer": "path_analyzer",
+                        "filter": [
+                            "max_token_length_filter",
+                            "icu_normalizer"
+                        ]
+                    },
+                    "version_analyzer": {
+                        "type": "pattern",
+                        "pattern": "\\\\s+"
+                    },
+                    "standard_max_term_100": {
+                        "type": "standard",
+                        "stopwords": "_english_",
+                        "max_token_length": 100
+                    },
+                    "my_analyzer": {
+                        "type": "custom",
+                        "tokenizer": "standard",
+                        "filter": [
+                            "lowercase"
+                        ]
+                    },
+                    "my_stop_analyzer": {
+                        "type": "custom",
+                        "tokenizer": "standard",
+                        "filter": [
+                            "lowercase",
+                            "english_stop"
+                        ]
+                    }
                 },
-                "english_stop": {
-                    "type": "stop",
-                    "stopwords": "_english_"
-                }
-            },
-            "analyzer": {
-                "general_analyzer": {
-                    "type": "custom",
-                    "filter": [
-                        "million_token_limit",
-                        "max_token_length_filter",
-                        "icu_normalizer"
-                    ],
-                    "char_filter": [ ],
-                    "tokenizer": "icu_tokenizer"
+                "normalizer": {
+                    "keyword_normalizer": {
+                        "type": "custom",
+                        "filter": [
+                            "icu_normalizer"
+                        ]
+                    },
+                    "my_normalizer": {
+                        "type": "custom",
+                        "char_filter": [],
+                        "filter": [
+                            "lowercase",
+                            "asciifolding"
+                        ]
+                    }
                 },
-                "path_analyzer": {
-                    "type": "custom",
-                    "tokenizer": "path_analyzer",
-                    "filter": [
-                        "max_token_length_filter",
-                        "icu_normalizer"
-                    ]
-                },
-                "version_analyzer": {
-                    "type": "pattern",
-                    "pattern": "\\\\s+"
-                },
-                "standard_max_term_100": {
-                    "type": "standard",
-                    "stopwords": "_english_",
-                    "max_token_length": 100
-                },
-                "my_analyzer": {
-                    "type": "custom",
-                    "tokenizer": "standard",
-                    "filter": [
-                        "lowercase"
-                    ]
-                },
-                "my_stop_analyzer": {
-                    "type": "custom",
-                    "tokenizer": "standard",
-                    "filter": [
-                        "lowercase",
-                        "english_stop"
-                    ]
-                }
-            },
-            "normalizer": {
-                "keyword_normalizer": {
-                    "type": "custom",
-                    "filter": [
-                        "icu_normalizer"
-                    ]
-                },
-                "my_normalizer": {
-                    "type": "custom",
-                    "char_filter": [ ],
-                    "filter": [
-                        "lowercase",
-                        "asciifolding"
-                    ]
-                }
-            },
-            "tokenizer": {
-                "path_analyzer": {
-                    "type": "path_hierarchy",
-                    "delimiter": "/"
+                "tokenizer": {
+                    "path_analyzer": {
+                        "type": "path_hierarchy",
+                        "delimiter": "/",
+                        "replacement": "/",
+                        "buffer_size": 1024,
+                        "reverse": false,
+                        "skip": 0
+                    }
                 }
             }
-        }
-    },
-    "mappings": {
-        "_routing": {
-            "required": true
         },
-        "dynamic": "strict",
-        "properties": {
-            "title": {
-                "type": "text",
-                "analyzer": "my_analyzer",
-                "search_analyzer": "my_stop_analyzer",
-                "search_quote_analyzer": "my_analyzer",
-                "boost": 2
+        "mappings": {
+            "_routing": {
+                "required": true
             },
-            "title_m": {
-                "type": "text",
-                "analyzer": "my_analyzer",
-                "search_analyzer": "my_stop_analyzer",
-                "search_quote_analyzer": "my_analyzer",
-                "boost": 2
-            },
-            "title_y": {
-                "type": "text",
-                "boost": 2
-            },
-            "title_z": {
-                "type": "text",
-                "analyzer": "my_analyzer",
-                "search_analyzer": "my_stop_analyzer",
-                "boost": 2
-            },
-            "number_two": {
-                "type": "integer",
-                "coerce": false
-            },
-            "first_name": {
-                "type": "text",
-                "copy_to": [
-                    "full_name"
-                ]
-            },
-            "last_name": {
-                "type": "text",
-                "copy_to": [
-                    "full_name"
-                ]
-            },
-            "full_name": {
-                "type": "text"
-            },
-            "status_code": {
-                "type": "keyword",
-                "null_value": "NULL"
-            },
-            "session_id": {
-                "type": "keyword",
-                "doc_values": false
-            },
-            "tags": {
-                "type": "keyword",
-                "eager_global_ordinals": true
-            },
-            "session_data": {
-                "type": "object",
-                "enabled": false
-            },
-            "date": {
-                "type": "date",
-                "format": "yyyy-MM-dd"
-            },
-            "message": {
-                "type": "keyword",
-                "ignore_above": 20
-            },
-            "number_one": {
-                "type": "integer",
-                "ignore_malformed": true
-            },
-            "dummy_message": {
-                "type": "keyword",
-                "index": false
-            },
-            "dummy_message2": {
-                "type": "text",
-                "index_options": "offsets"
-            },
-            "textdata1": {
-                "type": "text",
-                "index_phrases": true
-            },
-            "body_text": {
-                "type": "text",
-                "index_prefixes": {
-                    "min_chars": 1,
-                    "max_chars": 10
-                }
-            },
-            "latency": {
-                "type": "long",
-                "meta": {
-                    "unit": "ms"
-                }
-            },
-            "city": {
-                "type": "text",
-                "fields": {
-                    "raw": {
-                        "type": "keyword"
+            "dynamic": "strict",
+            "properties": {
+                "title": {
+                    "type": "text",
+                    "analyzer": "my_analyzer",
+                    "search_analyzer": "my_stop_analyzer",
+                    "search_quote_analyzer": "my_analyzer",
+                    "boost": 2
+                },
+                "title_m": {
+                    "type": "text",
+                    "analyzer": "my_analyzer",
+                    "search_analyzer": "my_stop_analyzer",
+                    "search_quote_analyzer": "my_analyzer",
+                    "boost": 2
+                },
+                "title_y": {
+                    "type": "text",
+                    "boost": 2
+                },
+                "title_z": {
+                    "type": "text",
+                    "analyzer": "my_analyzer",
+                    "search_analyzer": "my_stop_analyzer",
+                    "boost": 2
+                },
+                "number_two": {
+                    "type": "integer",
+                    "coerce": false
+                },
+                "first_name": {
+                    "type": "text",
+                    "copy_to": [
+                        "full_name"
+                    ]
+                },
+                "last_name": {
+                    "type": "text",
+                    "copy_to": [
+                        "full_name"
+                    ]
+                },
+                "full_name": {
+                    "type": "text"
+                },
+                "status_code": {
+                    "type": "keyword",
+                    "null_value": "NULL"
+                },
+                "session_id": {
+                    "type": "keyword",
+                    "doc_values": false
+                },
+                "tags": {
+                    "type": "keyword",
+                    "eager_global_ordinals": true
+                },
+                "session_data": {
+                    "type": "object",
+                    "enabled": false
+                },
+                "date": {
+                    "type": "date",
+                    "format": "yyyy-MM-dd"
+                },
+                "message": {
+                    "type": "keyword",
+                    "ignore_above": 20
+                },
+                "number_one": {
+                    "type": "integer",
+                    "ignore_malformed": true
+                },
+                "dummy_message": {
+                    "type": "keyword",
+                    "index": false
+                },
+                "dummy_message2": {
+                    "type": "text",
+                    "index_options": "offsets"
+                },
+                "textdata1": {
+                    "type": "text",
+                    "index_phrases": true
+                },
+                "body_text": {
+                    "type": "text",
+                    "index_prefixes": {
+                        "min_chars": 1,
+                        "max_chars": 10
                     }
-                }
-            },
-            "foo": {
-                "type": "keyword",
-                "normalizer": "my_normalizer"
-            },
-            "titlex": {
-                "type": "text",
-                "norms": false
-            },
-            "titlew": {
-                "type": "text",
-                "fielddata": true
-            },
-            "names2": {
-                "type": "text",
-                "position_increment_gap": 0
-            },
-            "manager": {
-                "properties": {
-                    "age": {
-                        "type": "integer"
-                    },
-                    "name": {
-                        "type": "text"
+                },
+                "latency": {
+                    "type": "long",
+                    "meta": {
+                        "unit": "ms"
                     }
+                },
+                "city": {
+                    "type": "text",
+                    "fields": {
+                        "raw": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "foo": {
+                    "type": "keyword",
+                    "normalizer": "my_normalizer"
+                },
+                "titlex": {
+                    "type": "text",
+                    "norms": false
+                },
+                "titlew": {
+                    "type": "text",
+                    "fielddata": true
+                },
+                "names2": {
+                    "type": "text",
+                    "position_increment_gap": 0
+                },
+                "manager": {
+                    "properties": {
+                        "age": {
+                            "type": "integer"
+                        },
+                        "name": {
+                            "type": "text"
+                        }
+                    }
+                },
+                "boolean_sim_field": {
+                    "type": "text",
+                    "similarity": "boolean"
+                },
+                "some_content": {
+                    "type": "text",
+                    "store": true
+                },
+                "some_content2": {
+                    "type": "text",
+                    "term_vector": "with_positions_offsets"
                 }
-            },
-            "boolean_sim_field": {
-                "type": "text",
-                "similarity": "boolean"
-            },
-            "some_content": {
-                "type": "text",
-                "store": true
-            },
-            "some_content2": {
-                "type": "text",
-                "term_vector": "with_positions_offsets"
             }
         }
     },
