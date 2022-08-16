@@ -1064,8 +1064,8 @@ public final class ElasticMappingUpdaterIT
                                                       indexName, statusCode, EntityUtils.toString(response.getEntity())));
         }
     }
-//
-    private boolean indexDocumentWithRetry(final IndexRequest request) throws InterruptedException
+
+    private boolean indexDocumentWithRetry(final IndexRequest<JsonData> request) throws InterruptedException
     {
         boolean retry = true;
         for (int i = 0; i < 3; i++) {

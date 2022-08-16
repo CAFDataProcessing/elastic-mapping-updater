@@ -20,17 +20,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.io.StringWriter;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.opensearch.client.json.jackson.JacksonJsonpGenerator;
+import org.opensearch.client.json.jackson.JacksonJsonpMapper;
+import org.opensearch.client.opensearch._types.mapping.DynamicTemplate;
+import org.opensearch.client.opensearch._types.mapping.Property;
+import org.opensearch.client.opensearch._types.mapping.TypeMapping;
+import org.opensearch.client.opensearch.indices.GetIndexResponse;
+import org.opensearch.client.opensearch.indices.get_index_template.IndexTemplateItem;
 
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
@@ -45,15 +53,6 @@ import com.github.cafdataprocessing.elastic.tools.utils.FlatMapUtil;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
-import java.io.StringWriter;
-import java.util.LinkedHashMap;
-import org.opensearch.client.json.jackson.JacksonJsonpGenerator;
-import org.opensearch.client.json.jackson.JacksonJsonpMapper;
-import org.opensearch.client.opensearch._types.mapping.DynamicTemplate;
-import org.opensearch.client.opensearch._types.mapping.Property;
-import org.opensearch.client.opensearch._types.mapping.TypeMapping;
-import org.opensearch.client.opensearch.indices.GetIndexResponse;
-import org.opensearch.client.opensearch.indices.get_index_template.IndexTemplateItem;
 
 public final class ElasticMappingUpdater
 {
@@ -159,6 +158,10 @@ public final class ElasticMappingUpdater
 
         final List<String> patterns = template.indexTemplate().indexPatterns();
 
+        if(template.indexTemplate().template() == null){
+            LOGGER.info("No template in '{}'. Indexes for this template will not be updated.", templateName);
+            return;
+        }
         final TypeMapping mapping = template.indexTemplate().template().mappings();
         if (mapping == null) {
             LOGGER.info("No mappings in template '{}'. Indexes for this template will not be updated.", templateName);
@@ -350,17 +353,15 @@ public final class ElasticMappingUpdater
 
             // Check if 'type' has changed for object/nested properties
             final Map<String, ValueDifference<Object>> typeDifferences = new LinkedHashMap<>();
-            
-            for(final Map.Entry<String, ValueDifference<Object>> e : entriesDiffering.entrySet()){
+          
+            for (final Map.Entry<String, ValueDifference<Object>> e : entriesDiffering.entrySet()) {
                 final Map<?, ?> leftEntry = ((Map<?, ?>) (e.getValue().leftValue()));
                 final Map<?, ?> rightEntry = ((Map<?, ?>) (e.getValue().rightValue()));
-                
-                if(rightEntry.containsKey(MAPPING_PROPS_KEY) 
-                    && (List.of("object", "nested").contains(rightEntry.get(MAPPING_TYPE_KEY).toString()))){
-                    if(!leftEntry.containsKey(MAPPING_PROPS_KEY) || leftEntry.containsKey(MAPPING_PROPS_KEY)
-                        && !leftEntry.get(MAPPING_TYPE_KEY).equals(rightEntry.get(MAPPING_TYPE_KEY))){
-                        typeDifferences.put(e.getKey(), e.getValue());
-                    }
+                if (rightEntry.containsKey(MAPPING_PROPS_KEY)
+                    && List.of("object", "nested").contains(rightEntry.get(MAPPING_TYPE_KEY).toString())
+                    && leftEntry.containsKey(MAPPING_PROPS_KEY)
+                    && !leftEntry.get(MAPPING_TYPE_KEY).equals(rightEntry.get(MAPPING_TYPE_KEY))) {
+                    typeDifferences.put(e.getKey(), e.getValue());
                 }
             }
 
@@ -460,7 +461,7 @@ public final class ElasticMappingUpdater
     
     private Map<String,Object> getObjectAsHashMap(Map<String,? extends Object> obj) throws JsonProcessingException, IOException{
         final Map<String, Object> mapFromString = new LinkedHashMap<>();
-        for (Map.Entry<String, ?> val : obj.entrySet()) {
+        for (final Map.Entry<String, ?> val : obj.entrySet()) {
             final ObjectMapper mapper = new ObjectMapper();
             final String result = "{\"" + val.getKey() + "\":" + getStringFromObject(val.getValue()) + "}";
             mapFromString.putAll(mapper.readValue(result, new TypeReference<Map<String, Object>>(){}));

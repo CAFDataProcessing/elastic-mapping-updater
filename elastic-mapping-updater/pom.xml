@@ -109,13 +109,6 @@
             <artifactId>jcl-over-slf4j</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20210307</version>
-            <scope>test</scope>
-            <type>jar</type>
-        </dependency>
     </dependencies>
 
     <build>
