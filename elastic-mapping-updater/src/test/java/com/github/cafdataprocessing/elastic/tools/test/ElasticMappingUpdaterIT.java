@@ -91,13 +91,13 @@ public final class ElasticMappingUpdaterIT
 
     public ElasticMappingUpdaterIT()
     {
-        protocol = "http"; //System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL");
-        host = "localhost";//System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES");
-        port = 9200;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT"));
+        protocol = System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL");
+        host = System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES");
+        port = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT"));
         username = "";
         password = "";
-        connectTimeout = 1000000000;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT"));
-        socketTimeout = 1000000000;//Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT"));
+        connectTimeout = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT"));
+        socketTimeout = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT"));
 
         transport = new RestClientTransport(RestClient.builder(new HttpHost(host, port, protocol)).build(), new JacksonJsonpMapper());
         client = new OpenSearchClient(transport);
