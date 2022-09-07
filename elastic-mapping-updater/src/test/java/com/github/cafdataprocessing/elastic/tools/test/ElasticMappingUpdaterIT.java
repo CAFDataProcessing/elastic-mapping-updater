@@ -25,11 +25,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONObject;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
@@ -72,8 +74,6 @@ import org.opensearch.client.opensearch.core.SearchRequest;
 import org.opensearch.client.opensearch.core.SearchResponse;
 import org.opensearch.client.opensearch.core.search.Hit;
 import org.opensearch.client.opensearch.core.search.TrackHits;
-import org.opensearch.client.opensearch.indices.GetIndexResponse;
-import org.opensearch.client.opensearch.indices.IndexState;
 import org.opensearch.client.transport.rest_client.RestClientTransport;
 
 public final class ElasticMappingUpdaterIT
@@ -106,7 +106,7 @@ public final class ElasticMappingUpdaterIT
     private void deleteAllIndexTemplates() throws IOException{
         LOGGER.info("Deleting all index templates");
         final RestClient restClient = transport.restClient();
-        final String endpoint = "_index_template/*";
+        final String endpoint = "_template/*";
         final Request request = new Request("DELETE", endpoint);
         final Response response = restClient.performRequest(request);
         
@@ -120,7 +120,7 @@ public final class ElasticMappingUpdaterIT
         final String origTemplateSource = readFile(fileLocation);
 
         final RestClient restClient = transport.restClient();
-        final String endpoint = "_index_template/" + UrlEscapers.urlPathSegmentEscaper().escape(templateName);
+        final String endpoint = "_template/" + UrlEscapers.urlPathSegmentEscaper().escape(templateName);
         final Request request = new Request("PUT", endpoint);
         final StringBuilder jsonMapping = new StringBuilder();
 
@@ -1050,15 +1050,12 @@ public final class ElasticMappingUpdaterIT
 
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200) {
-            try (final InputStream resultJsonStream = response.getEntity().getContent();
-                 final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
-                final GetIndexResponse getIndexResponse = GetIndexResponse._DESERIALIZER.deserialize(jsonValueParser, 
-                                                                                                     new JacksonJsonpMapper());
-                final IndexState indexMappings = getIndexResponse.result().get(indexName);
-                final TypeMapping indexTypeMappings = indexMappings.mappings();
-                LOGGER.info("{}------Updated mapping for index '{}': {}", testName, indexName, indexTypeMappings);
-                return indexTypeMappings;
-            }
+            final JSONObject responseBody = new JSONObject(EntityUtils.toString(response.getEntity()));
+            final JSONObject mappings = responseBody.getJSONObject(indexName).getJSONObject("mappings");
+            final JsonParser jsonMappingParser = Json.createParser(new StringReader(mappings.toString()));
+            final TypeMapping indexTypeMappings = TypeMapping._DESERIALIZER.deserialize(jsonMappingParser, new JacksonJsonpMapper());
+            LOGGER.info("{}------Updated mapping for index '{}': {}", testName, indexName, indexTypeMappings);
+            return indexTypeMappings;
         } else {
             throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
                                                       indexName, statusCode, EntityUtils.toString(response.getEntity())));

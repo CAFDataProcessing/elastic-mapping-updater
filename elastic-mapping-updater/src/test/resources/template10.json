@@ -1,173 +1,163 @@
 {
-    "template": {
-        "settings": {
-            "index": {
-                "number_of_shards": 5,
-                "number_of_replicas": 0,
-                "codec": "best_compression",
-                "refresh_interval": "1s",
-                "max_result_window": "1000000",
-                "merge.scheduler.max_thread_count": 1
+    "settings": {
+        "index": {
+            "number_of_shards": 5,
+            "number_of_replicas": 0,
+            "codec": "best_compression",
+            "refresh_interval": "1s",
+            "max_result_window": "1000000",
+            "merge.scheduler.max_thread_count": 1
+        },
+        "analysis": {
+            "char_filter": {
+                "html_strip_filter": {
+                    "type": "html_strip"
+                }
             },
-            "analysis": {
-                "char_filter": {
-                    "html_strip_filter": {
-                        "type": "html_strip"
-                    }
+            "filter": {
+                "million_token_limit": {
+                    "type": "limit",
+                    "max_token_count": 1000000
                 },
-                "filter": {
-                    "million_token_limit": {
-                        "type": "limit",
-                        "max_token_count": 1000000,
-                        "consume_all_tokens": false
-                    },
-                    "period_break_filter": {
-                        "type": "pattern_capture",
-                        "preserve_original": false,
-                        "patterns": [
-                            "^([\\\\p{Nd},\\\\.'?]+)$|([^\\\\.']+)"
-                        ],
-                        "consume_all_tokens": false
-                    },
-                    "max_token_length_filter": {
-                        "type": "length",
-                        "min": 0,
-                        "max": 10922,
-                        "consume_all_tokens": false
-                    }
+                "period_break_filter": {
+                    "type": "pattern_capture",
+                    "preserve_original": false,
+                    "patterns": [
+                        "^([\\\\p{Nd},\\\\.'?]+)$|([^\\\\.']+)"
+                    ]
                 },
-                "analyzer": {
-                    "general_analyzer": {
-                        "type": "custom",
-                        "filter": [
-                            "million_token_limit",
-                            "max_token_length_filter",
-                            "icu_normalizer"
-                        ],
-                        "char_filter": [],
-                        "tokenizer": "icu_tokenizer"
-                    },
-                    "path_analyzer": {
-                        "type": "custom",
-                        "tokenizer": "path_analyzer",
-                        "filter": [
-                            "max_token_length_filter",
-                            "icu_normalizer"
-                        ]
-                    },
-                    "version_analyzer": {
-                        "type": "pattern",
-                        "pattern": "\\\\s+"
-                    },
-                    "standard_max_term_100": {
-                        "type": "standard",
-                        "stopwords": "_english_",
-                        "max_token_length": 100
-                    }
+                "max_token_length_filter": {
+                    "type": "length",
+                    "max": 10922
+                }
+            },
+            "analyzer": {
+                "general_analyzer": {
+                    "type": "custom",
+                    "filter": [
+                        "million_token_limit",
+                        "max_token_length_filter",
+                        "icu_normalizer"
+                    ],
+                    "char_filter": [],
+                    "tokenizer": "icu_tokenizer"
                 },
-                "normalizer": {
-                    "keyword_normalizer": {
-                        "type": "custom",
-                        "filter": [
-                            "icu_normalizer"
-                        ]
-                    }
+                "path_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "path_analyzer",
+                    "filter": [
+                        "max_token_length_filter",
+                        "icu_normalizer"
+                    ]
                 },
-                "tokenizer": {
-                    "path_analyzer": {
-                        "type": "path_hierarchy",
-                        "delimiter": "/",
-                        "replacement": "/",
-                        "buffer_size": 1024,
-                        "reverse": false,
-                        "skip": 0
+                "version_analyzer": {
+                    "type": "pattern",
+                    "pattern": "\\\\s+"
+                },
+                "standard_max_term_100": {
+                    "type": "standard",
+                    "stopwords": "_english_",
+                    "max_token_length": 100
+                }
+            },
+            "normalizer": {
+                "keyword_normalizer": {
+                    "type": "custom",
+                    "filter": [
+                        "icu_normalizer"
+                    ]
+                }
+            },
+            "tokenizer": {
+                "path_analyzer": {
+                    "type": "path_hierarchy",
+                    "delimiter": "/"
+                }
+            }
+        }
+    },
+    "mappings": {
+        "_routing": {
+            "required": true
+        },
+        "dynamic_templates": [
+            {
+                "EVERY_THING_ELSE_TEMPLATE": {
+                    "match": "*",
+                    "mapping": {
+                        "doc_values": false,
+                        "index": false,
+                        "store": false,
+                        "type": "text"
                     }
                 }
             }
-        },
-        "mappings": {
-            "_routing": {
-                "required": true
-            },
-            "dynamic_templates": [
-                {
-                    "EVERY_THING_ELSE_TEMPLATE": {
-                        "match": "*",
-                        "mapping": {
-                            "doc_values": false,
-                            "index": false,
-                            "store": false,
-                            "type": "text"
-                        }
-                    }
-                }
-            ],
-            "properties": {
-                "ENTITIES": {
-                    "properties": {
-                        "ENTITY_ID": {
-                            "ignore_above": 1024,
-                            "type": "keyword"
-                        },
-                        "GRAMMAR_ID": {
-                            "ignore_above": 1024,
-                            "type": "keyword"
-                        },
-                        "MATCHES": {
-                            "properties": {
-                                "VALUE": {
-                                    "ignore_above": 1024,
-                                    "type": "keyword"
-                                },
-                                "SCORE": {
-                                    "type": "double"
-                                }
+        ],
+        "properties": {
+            "ENTITIES": {
+                "properties": {
+                    "ENTITY_ID": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "GRAMMAR_ID": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "MATCHES": {
+                        "properties": {
+                            "VALUE": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            },
+                            "SCORE": {
+                                "type": "double"
                             }
                         }
                     }
-                },
-                "PERSON": {
-                    "properties": {
-                        "NAME": {
-                            "type": "keyword",
-                            "ignore_above": 20
-                        }
+                }
+            },
+            "PERSON": {
+                "properties": {
+                    "NAME": {
+                        "type": "keyword",
+                        "ignore_above": 20
+                    }
+                }
+            },
+            "ID": {
+                "type": "long",
+                "ignore_malformed": true
+            },
+            "TITLE": {
+                "type": "text",
+                "analyzer": "path_analyzer"
+            },
+            "CONTENT_PRIMARY": {
+                "type": "text",
+                "analyzer": "path_analyzer"
+            },
+            "IS_HEAD_OF_FAMILY": {
+                "type": "boolean"
+            },
+            "DATE_PROCESSED": {
+                "type": "date",
+                "format": "strict_date_optional_time||epoch_second"
+            },
+            "LANGUAGE_CODES": {
+                "include_in_parent": true,
+                "properties": {
+                    "CODE": {
+                        "ignore_above": 10922,
+                        "store": true,
+                        "type": "keyword"
+                    },
+                    "CONFIDENCE": {
+                        "store": true,
+                        "type": "double"
                     }
                 },
-                "ID": {
-                    "type": "long",
-                    "ignore_malformed": true
-                },
-                "TITLE": {
-                    "type": "text",
-                    "analyzer": "path_analyzer"
-                },
-                "CONTENT_PRIMARY": {
-                    "type": "text",
-                    "analyzer": "path_analyzer"
-                },
-                "IS_HEAD_OF_FAMILY": {
-                    "type": "boolean"
-                },
-                "DATE_PROCESSED": {
-                    "type": "date",
-                    "format": "strict_date_optional_time||epoch_second"
-                },
-                "LANGUAGE_CODES": {
-                    "include_in_parent": true,
-                    "properties": {
-                        "CODE": {
-                            "ignore_above": 10922,
-                            "store": true,
-                            "type": "keyword"
-                        },
-                        "CONFIDENCE": {
-                            "store": true,
-                            "type": "double"
-                        }
-                    },
-                    "type": "nested"
-                }
+                "type": "nested"
             }
         }
     },
