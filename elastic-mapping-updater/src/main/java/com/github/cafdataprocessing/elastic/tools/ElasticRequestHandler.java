@@ -28,7 +28,6 @@ import java.util.stream.StreamSupport;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
-import org.json.JSONObject;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
@@ -44,6 +43,8 @@ import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseE
 import com.google.common.net.UrlEscapers;
 
 import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 import jakarta.json.stream.JsonParser;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
@@ -123,8 +124,9 @@ final class ElasticRequestHandler
 
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200) {
-            final JSONObject responseBody = new JSONObject(EntityUtils.toString(response.getEntity()));
-            final JSONObject mappings = responseBody.getJSONObject(indexName).getJSONObject("mappings");
+            final JsonReader jsonReader = Json.createReader(new StringReader(EntityUtils.toString(response.getEntity())));
+            final JsonObject mappings = jsonReader.readObject().getJsonObject(indexName).getJsonObject("mappings");
+
             final JsonParser jsonMappingParser = Json.createParser(new StringReader(mappings.toString()));
             ApiTypeHelper.DANGEROUS_disableRequiredPropertiesCheck(true);
             final TypeMapping mapping = TypeMapping._DESERIALIZER.deserialize(jsonMappingParser, new JacksonJsonpMapper());

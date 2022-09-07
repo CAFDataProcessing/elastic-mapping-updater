@@ -31,7 +31,6 @@ import java.util.Map;
 
 import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
-import org.json.JSONObject;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
@@ -45,6 +44,8 @@ import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplatesExcepti
 import com.github.cafdataprocessing.elastic.tools.exceptions.UnexpectedResponseException;
 import com.google.common.net.UrlEscapers;
 import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 import jakarta.json.stream.JsonParser;
 import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
@@ -1050,8 +1051,8 @@ public final class ElasticMappingUpdaterIT
 
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200) {
-            final JSONObject responseBody = new JSONObject(EntityUtils.toString(response.getEntity()));
-            final JSONObject mappings = responseBody.getJSONObject(indexName).getJSONObject("mappings");
+            final JsonReader jsonReader = Json.createReader(new StringReader(EntityUtils.toString(response.getEntity())));
+            final JsonObject mappings = jsonReader.readObject().getJsonObject(indexName).getJsonObject("mappings");
             final JsonParser jsonMappingParser = Json.createParser(new StringReader(mappings.toString()));
             final TypeMapping indexTypeMappings = TypeMapping._DESERIALIZER.deserialize(jsonMappingParser, new JacksonJsonpMapper());
             LOGGER.info("{}------Updated mapping for index '{}': {}", testName, indexName, indexTypeMappings);
