@@ -17,6 +17,7 @@ package com.github.cafdataprocessing.elastic.tools;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.stream.StreamSupport;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONObject;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
@@ -44,9 +46,10 @@ import com.google.common.net.UrlEscapers;
 import jakarta.json.Json;
 import jakarta.json.stream.JsonParser;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
-import org.opensearch.client.opensearch.indices.GetIndexResponse;
-import org.opensearch.client.opensearch.indices.GetIndexTemplateResponse;
-import org.opensearch.client.opensearch.indices.get_index_template.IndexTemplateItem;
+import org.opensearch.client.opensearch._types.mapping.TypeMapping;
+import org.opensearch.client.opensearch.indices.GetTemplateResponse;
+import org.opensearch.client.opensearch.indices.TemplateMapping;
+import org.opensearch.client.util.ApiTypeHelper;
 
 final class ElasticRequestHandler
 {
@@ -60,22 +63,22 @@ final class ElasticRequestHandler
         this.elasticClient = ElasticProvider.getClient(schemaUpdaterConfig.getElasticSettings());
     }
 
-    List<IndexTemplateItem> getTemplates()
+    Map<String, TemplateMapping> getTemplates()
         throws IOException, GetTemplatesException
     {
         LOGGER.debug("Getting templates...");
-        final Request request = new Request("GET", "/_index_template");
+        final Request request = new Request("GET", "/_template");
         final Response response = elasticClient.performRequest(request);
 
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200) {
             try (final InputStream resultJsonStream = response.getEntity().getContent();
-                 final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
-                
-                final GetIndexTemplateResponse getTemplatesResponse = 
-                    GetIndexTemplateResponse._DESERIALIZER.deserialize(jsonValueParser, new JacksonJsonpMapper());
-                
-                final List<IndexTemplateItem> indexTemplates = getTemplatesResponse.indexTemplates();
+                final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
+                ApiTypeHelper.DANGEROUS_disableRequiredPropertiesCheck(true);
+                final GetTemplateResponse getTemplatesResponse =
+                    GetTemplateResponse._DESERIALIZER.deserialize(jsonValueParser, new JacksonJsonpMapper());
+                final Map<String, TemplateMapping> indexTemplates = getTemplatesResponse.result();
+                ApiTypeHelper.DANGEROUS_disableRequiredPropertiesCheck(false);
                 return indexTemplates;
             }
         } else {
@@ -112,18 +115,21 @@ final class ElasticRequestHandler
         }
     }
 
-    public GetIndexResponse getIndex(final String indexName) throws IOException, GetIndexException
+    public TypeMapping getIndexMapping(final String indexName) throws IOException, GetIndexException
     {
-        LOGGER.debug("Getting index {}...", indexName);
+        LOGGER.debug("Getting index mapping for: {}...", indexName);
         final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
         final Response response = elasticClient.performRequest(request);
 
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200) {
-            try (final InputStream resultJsonStream = response.getEntity().getContent();
-                 final JsonParser jsonValueParser = Json.createParser(resultJsonStream)) {
-                return GetIndexResponse._DESERIALIZER.deserialize(jsonValueParser, new JacksonJsonpMapper());
-            }
+            final JSONObject responseBody = new JSONObject(EntityUtils.toString(response.getEntity()));
+            final JSONObject mappings = responseBody.getJSONObject(indexName).getJSONObject("mappings");
+            final JsonParser jsonMappingParser = Json.createParser(new StringReader(mappings.toString()));
+            ApiTypeHelper.DANGEROUS_disableRequiredPropertiesCheck(true);
+            final TypeMapping mapping = TypeMapping._DESERIALIZER.deserialize(jsonMappingParser, new JacksonJsonpMapper());
+            ApiTypeHelper.DANGEROUS_disableRequiredPropertiesCheck(false);
+            return mapping;
         } else {
             throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
                                                       indexName, statusCode, EntityUtils.toString(response.getEntity())));

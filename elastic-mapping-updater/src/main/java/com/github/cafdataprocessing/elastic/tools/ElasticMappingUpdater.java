@@ -24,9 +24,9 @@ import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.io.StringWriter;
 
 import org.apache.commons.lang3.StringUtils;
@@ -37,8 +37,7 @@ import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch._types.mapping.DynamicTemplate;
 import org.opensearch.client.opensearch._types.mapping.Property;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
-import org.opensearch.client.opensearch.indices.GetIndexResponse;
-import org.opensearch.client.opensearch.indices.get_index_template.IndexTemplateItem;
+import org.opensearch.client.opensearch.indices.TemplateMapping;
 
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
@@ -142,27 +141,21 @@ public final class ElasticMappingUpdater
     private void updateIndexes()
         throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
     {
-        final List<IndexTemplateItem> templates = elasticRequestHandler.getTemplates();
-        LOGGER.info("Templates found in Elasticsearch: {}",
-                    templates.stream().map(template -> template.name()).collect(Collectors.toList()));
-        for (final IndexTemplateItem template : templates) {
-            updateIndexesForTemplate(template);
+        final Map<String, TemplateMapping> templates = elasticRequestHandler.getTemplates();
+        LOGGER.info("Templates found in Elasticsearch: {}", templates.keySet());
+        for (final Entry<String, TemplateMapping> template : templates.entrySet()) {
+            updateIndexesForTemplate(template.getKey(), template.getValue());
         }
     }
 
-    private void updateIndexesForTemplate(final IndexTemplateItem template)
-        throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
+    private void updateIndexesForTemplate(final String templateName, final TemplateMapping template)
+        throws IOException, GetIndexException, UnexpectedResponseException
     {
-        final String templateName = template.name();
         LOGGER.info("---- Analyzing indexes matching template '{}' ----", templateName);
 
-        final List<String> patterns = template.indexTemplate().indexPatterns();
+        final List<String> patterns = template.indexPatterns();
 
-        if(template.indexTemplate().template() == null){
-            LOGGER.info("No template in '{}'. Indexes for this template will not be updated.", templateName);
-            return;
-        }
-        final TypeMapping mapping = template.indexTemplate().template().mappings();
+        final TypeMapping mapping = template.mappings();
         if (mapping == null) {
             LOGGER.info("No mappings in template '{}'. Indexes for this template will not be updated.", templateName);
             return;
@@ -174,8 +167,7 @@ public final class ElasticMappingUpdater
         final List<String> indexes = elasticRequestHandler.getIndexNames(patterns);
         LOGGER.info("Found {} index(es) that match template '{}'", indexes.size(), templateName);
         for (final String indexName : indexes) {
-            GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
-            final TypeMapping indexMappings = getIndexResponse.result().get(indexName).mappings();
+            final TypeMapping indexMappings = elasticRequestHandler.getIndexMapping(indexName);
             final Map<String, Object> indexProperties = getObjectAsHashMap(indexMappings.properties());
 
             LOGGER.info("Comparing index mapping for '{}'", indexName);
