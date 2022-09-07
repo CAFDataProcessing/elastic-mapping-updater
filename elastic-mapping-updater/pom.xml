@@ -169,9 +169,9 @@
                     <verbose>true</verbose>
                     <removeVolumes>true</removeVolumes>
                     <images>
-                        <!-- Elasticsearch image -->
+                        <!-- OpenSearch image -->
                         <image>
-                            <name>${dockerHubPublic}/cafapi/opensuse-elasticsearch7:3</name>
+                            <name>${dockerHubPublic}/cafapi/prereleases:opensuse-opensearch1-image-1.2.0-SNAPSHOT</name>
                             <alias>elasticsearch</alias>
                             <run>
                                 <env>
