@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.io.StringWriter;
 
 import org.apache.commons.lang3.StringUtils;
@@ -346,16 +347,11 @@ public final class ElasticMappingUpdater
                                                                  key, value.rightValue(), value.leftValue()));
 
             // Check if 'type' has changed for object/nested properties
-            final Map<String, ValueDifference<Object>> typeDifferences = new LinkedHashMap<>();
-
-            for (final Map.Entry<String, ValueDifference<Object>> e : entriesDiffering.entrySet()) {
-                final Map<?, ?> leftEntry = ((Map<?, ?>) (e.getValue().leftValue()));
-                final Map<?, ?> rightEntry = ((Map<?, ?>) (e.getValue().rightValue()));
-                if (leftEntry.containsKey(MAPPING_PROPS_KEY)
-                    && (!leftEntry.get(MAPPING_TYPE_KEY).equals("object") || !rightEntry.get(MAPPING_TYPE_KEY).equals("object"))) {
-                    typeDifferences.put(e.getKey(), e.getValue());
-                }
-            }
+            final Map<String, ValueDifference<Object>> typeDifferences = entriesDiffering.entrySet().stream()
+                .filter(e -> ((Map<?, ?>) (e.getValue().leftValue())).containsKey(MAPPING_PROPS_KEY)
+                && (!((Map<?, ?>) (e.getValue().leftValue())).get(MAPPING_TYPE_KEY).equals("object")
+                || !((Map<?, ?>) (e.getValue().rightValue())).get(MAPPING_TYPE_KEY).equals("object")))
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 
             if (!typeDifferences.isEmpty()) {
                 typeDifferences.forEach(
