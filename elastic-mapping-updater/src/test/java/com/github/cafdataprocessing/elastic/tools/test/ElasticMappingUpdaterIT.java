@@ -59,6 +59,7 @@ import static org.junit.Assert.assertFalse;
 import org.junit.Before;
 import org.opensearch.client.json.JsonData;
 import org.opensearch.client.json.JsonpDeserializer;
+import org.opensearch.client.json.JsonpSerializable;
 import org.opensearch.client.json.jackson.JacksonJsonpGenerator;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch._types.Result;
@@ -431,11 +432,11 @@ public final class ElasticMappingUpdaterIT
 
         final Map<String, Property> props = indexTypeMappings.properties();
         final Property dateDisposedProp = props.get("DATE_DISPOSED");
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", dateDisposedProp);
+        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", getObjectAsString(dateDisposedProp));
 
         // Verify allowed field changes has updated field mapping
         final Property idProp =  props.get("ID");
-        LOGGER.info("idProp {} ", idProp);
+        LOGGER.info("idProp {} ", getObjectAsString(idProp));
         final Object idPropValue = idProp.long_().properties().get("ignore_malformed");
         // Verify property mapping parameter was removed
         assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", idPropValue);
@@ -528,7 +529,7 @@ public final class ElasticMappingUpdaterIT
         assertNotNull("testUpdateIndexesWithNestedFieldChanges", dateDisposedProp);
 
         final Property entitiesProp = props.get("ENTITIES");
-        LOGGER.info("entitiesPropMapping {} ", entitiesProp);
+        LOGGER.info("entitiesPropMapping {} ", getObjectAsString(entitiesProp));
         final Map<String, Property> entitiesProps = entitiesProp.object().properties();
         final Property grammarIdProp =  entitiesProps.get("GRAMMAR_ID");
         assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", grammarIdProp);
@@ -1050,7 +1051,8 @@ public final class ElasticMappingUpdaterIT
             final JsonObject mappings = jsonReader.readObject().getJsonObject(indexName).getJsonObject("mappings");
             final JsonParser jsonMappingParser = Json.createParser(new StringReader(mappings.toString()));
             final TypeMapping indexTypeMappings = TypeMapping._DESERIALIZER.deserialize(jsonMappingParser, new JacksonJsonpMapper());
-            LOGGER.info("{}------Updated mapping for index '{}': {}", testName, indexName, indexTypeMappings);
+            LOGGER.info("{}------Updated mapping for index '{}': {}",
+                testName, indexName, getObjectAsString(indexTypeMappings));
             return indexTypeMappings;
         } else {
             throw new GetIndexException(String.format("Error getting index '%s'. Status code: %s, response: %s",
@@ -1126,5 +1128,16 @@ public final class ElasticMappingUpdaterIT
             return true;
         }
         return false;
+    }
+
+    private static String getObjectAsString(final JsonpSerializable objToSerialize)
+    {
+        final StringWriter writer = new StringWriter();
+        try (final JacksonJsonpGenerator generator = new JacksonJsonpGenerator(new JsonFactory().createGenerator(writer))) {
+            objToSerialize.serialize(generator, new JacksonJsonpMapper());
+        } catch (final IOException ex) {
+            LOGGER.error("Error serializing object", ex);
+        }
+        return writer.toString();
     }
 }
