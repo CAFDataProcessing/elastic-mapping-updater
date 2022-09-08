@@ -61,6 +61,8 @@ public final class ElasticMappingUpdater
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
     private static final String MAPPING_TYPE_KEY = "type";
 
+    private final ObjectMapper mapper = new ObjectMapper();
+
     private static final Set<String> MODIFIABLE_PROPERTIES = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList(
                     "boost",
@@ -452,7 +454,6 @@ public final class ElasticMappingUpdater
     private Map<String,Object> getObjectAsHashMap(final Map<String,? extends Object> obj) throws JsonProcessingException, IOException{
         final Map<String, Object> mapFromString = new LinkedHashMap<>();
         for (final Map.Entry<String, ?> val : obj.entrySet()) {
-            final ObjectMapper mapper = new ObjectMapper();
             final String result = "{\"" + val.getKey() + "\":" + getStringFromObject(val.getValue()) + "}";
             mapFromString.putAll(mapper.readValue(result, new TypeReference<Map<String, Object>>(){}));
         }
