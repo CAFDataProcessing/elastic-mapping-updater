@@ -33,10 +33,10 @@ import java.io.StringWriter;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.opensearch.client.json.JsonpSerializable;
 import org.opensearch.client.json.jackson.JacksonJsonpGenerator;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch._types.mapping.DynamicTemplate;
-import org.opensearch.client.opensearch._types.mapping.Property;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch.indices.TemplateMapping;
 
@@ -447,27 +447,21 @@ public final class ElasticMappingUpdater
         }
     }
 
-    private Map<String,Object> getObjectAsHashMap(final Map<String,? extends Object> obj) throws JsonProcessingException, IOException
+    private Map<String,Object> getObjectAsHashMap(final Map<String, ? extends JsonpSerializable> obj) throws JsonProcessingException, IOException
     {
         final Map<String, Object> mapFromString = new LinkedHashMap<>();
-        for (final Map.Entry<String, ?> val : obj.entrySet()) {
+        for (final Entry<String, ? extends JsonpSerializable> val : obj.entrySet()) {
             final String result = "{\"" + val.getKey() + "\":" + getStringFromObject(val.getValue()) + "}";
             mapFromString.putAll(mapper.readValue(result, new TypeReference<Map<String, Object>>(){}));
         }
         return mapFromString;
     }
 
-    private String getStringFromObject(final Object value) throws IOException
+    private String getStringFromObject(final JsonpSerializable value) throws IOException
     {
         final StringWriter writer = new StringWriter();
         try (final JacksonJsonpGenerator generator = new JacksonJsonpGenerator(new JsonFactory().createGenerator(writer))) {
-            if (value instanceof Property) {
-                ((Property) value).serialize(generator, new JacksonJsonpMapper());
-            } else if (value instanceof DynamicTemplate) {
-                ((DynamicTemplate) value).serialize(generator, new JacksonJsonpMapper());
-            } else {
-                throw new UnsupportedOperationException("Unknown object type");
-            }
+            value.serialize(generator, new JacksonJsonpMapper());
         }
         return writer.toString();
     }
