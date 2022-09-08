@@ -182,12 +182,12 @@ public final class ElasticMappingUpdater
             // Add all dynamic_templates in template to index mapping
             // Empty list will clear all existing dynamic_templates in index mapping
             final List<Object> dynamicTemplatesInTemplate = new ArrayList<>();
-            for(final Map<String, DynamicTemplate> t : mapping.dynamicTemplates()){
-                dynamicTemplatesInTemplate.add(getObjectAsHashMap(t)); 
+            for (final Map<String, DynamicTemplate> t : mapping.dynamicTemplates()) {
+                dynamicTemplatesInTemplate.add(getObjectAsHashMap(t));
             }
-            
+
             final List<Object> dynamicTemplatesInIndex = new ArrayList<>();
-            for(final Map<String, DynamicTemplate> t : indexMappings.dynamicTemplates()){
+            for (final Map<String, DynamicTemplate> t : indexMappings.dynamicTemplates()) {
                 dynamicTemplatesInIndex.add(getObjectAsHashMap(t));
             }
 
@@ -347,7 +347,7 @@ public final class ElasticMappingUpdater
 
             // Check if 'type' has changed for object/nested properties
             final Map<String, ValueDifference<Object>> typeDifferences = new LinkedHashMap<>();
-          
+
             for (final Map.Entry<String, ValueDifference<Object>> e : entriesDiffering.entrySet()) {
                 final Map<?, ?> leftEntry = ((Map<?, ?>) (e.getValue().leftValue()));
                 final Map<?, ?> rightEntry = ((Map<?, ?>) (e.getValue().rightValue()));
@@ -450,8 +450,9 @@ public final class ElasticMappingUpdater
             }
         }
     }
-    
-    private Map<String,Object> getObjectAsHashMap(final Map<String,? extends Object> obj) throws JsonProcessingException, IOException{
+
+    private Map<String,Object> getObjectAsHashMap(final Map<String,? extends Object> obj) throws JsonProcessingException, IOException
+    {
         final Map<String, Object> mapFromString = new LinkedHashMap<>();
         for (final Map.Entry<String, ?> val : obj.entrySet()) {
             final String result = "{\"" + val.getKey() + "\":" + getStringFromObject(val.getValue()) + "}";
