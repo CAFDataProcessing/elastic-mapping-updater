@@ -20,24 +20,31 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.io.StringWriter;
 
 import org.apache.commons.lang3.StringUtils;
-import org.opensearch.client.indices.GetIndexResponse;
-import org.opensearch.client.indices.IndexTemplateMetadata;
-import org.opensearch.cluster.metadata.MappingMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.opensearch.client.json.JsonpSerializable;
+import org.opensearch.client.json.jackson.JacksonJsonpGenerator;
+import org.opensearch.client.json.jackson.JacksonJsonpMapper;
+import org.opensearch.client.opensearch._types.mapping.DynamicTemplate;
+import org.opensearch.client.opensearch._types.mapping.TypeMapping;
+import org.opensearch.client.opensearch.indices.TemplateMapping;
 
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetIndexException;
 import com.github.cafdataprocessing.elastic.tools.exceptions.GetTemplatesException;
@@ -54,6 +61,8 @@ public final class ElasticMappingUpdater
     private static final String MAPPING_PROPS_KEY = "properties";
     private static final String MAPPING_DYNAMIC_TEMPLATES_KEY = "dynamic_templates";
     private static final String MAPPING_TYPE_KEY = "type";
+
+    private final ObjectMapper mapper = new ObjectMapper();
 
     private static final Set<String> MODIFIABLE_PROPERTIES = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList(
@@ -135,66 +144,53 @@ public final class ElasticMappingUpdater
     private void updateIndexes()
         throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
     {
-        final List<IndexTemplateMetadata> templates = elasticRequestHandler.getTemplates();
-        LOGGER.info("Templates found in Elasticsearch: {}",
-                    templates.stream().map(template -> template.name()).collect(Collectors.toList()));
-        for (final IndexTemplateMetadata template : templates) {
-            updateIndexesForTemplate(template);
+        final Map<String, TemplateMapping> templates = elasticRequestHandler.getTemplates();
+        LOGGER.info("Templates found in Elasticsearch: {}", templates.keySet());
+        for (final Entry<String, TemplateMapping> template : templates.entrySet()) {
+            updateIndexesForTemplate(template.getKey(), template.getValue());
         }
     }
 
-    private void updateIndexesForTemplate(final IndexTemplateMetadata template)
-        throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
+    private void updateIndexesForTemplate(final String templateName, final TemplateMapping template)
+        throws IOException, GetIndexException, UnexpectedResponseException
     {
-        final String templateName = template.name();
         LOGGER.info("---- Analyzing indexes matching template '{}' ----", templateName);
 
-        final List<String> patterns = template.patterns();
+        final List<String> patterns = template.indexPatterns();
 
-        final MappingMetadata mapping = template.mappings();
+        final TypeMapping mapping = template.mappings();
         if (mapping == null) {
             LOGGER.info("No mappings in template '{}'. Indexes for this template will not be updated.", templateName);
             return;
         }
 
-        final Map<String, Object> templateTypeMappings = mapping.getSourceAsMap();
-
-        final Object templateProperties = Optional
-            .ofNullable(templateTypeMappings.get(MAPPING_PROPS_KEY))
-            .orElseGet(Collections::emptyMap);
+        final Map<String, Object> templateProperties = getObjectAsHashMap(mapping.properties());
 
         // Find all indices that match template patterns
         final List<String> indexes = elasticRequestHandler.getIndexNames(patterns);
         LOGGER.info("Found {} index(es) that match template '{}'", indexes.size(), templateName);
         for (final String indexName : indexes) {
-            GetIndexResponse getIndexResponse = elasticRequestHandler.getIndex(indexName);
-            MappingMetadata indexMappings = getIndexResponse.getMappings().get(indexName);
-            Map<String, Object> indexTypeMappings = indexMappings.getSourceAsMap();
+            final TypeMapping indexMappings = elasticRequestHandler.getIndexMapping(indexName);
+            final Map<String, Object> indexProperties = getObjectAsHashMap(indexMappings.properties());
 
             LOGGER.info("Comparing index mapping for '{}'", indexName);
 
-            final Object indexProperties = Optional
-                .ofNullable(indexTypeMappings.get(MAPPING_PROPS_KEY))
-                .orElseGet(Collections::emptyMap);
-
-            @SuppressWarnings("unchecked")
-            final Map<String, Object> mappingsChanges = getMappingChanges(
-                (Map<String, Object>) templateProperties,
-                (Map<String, Object>) indexProperties);
+            final Map<String, Object> mappingsChanges = getMappingChanges(templateProperties, indexProperties);
 
             final Map<String, Object> mappingsRequest = new HashMap<>();
             mappingsRequest.put(MAPPING_PROPS_KEY, mappingsChanges);
 
             // Add all dynamic_templates in template to index mapping
-            @SuppressWarnings("unchecked")
-            final List<Object> dynamicTemplatesInTemplate = (List<Object>) Optional
-                .ofNullable(templateTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
-                .orElseGet(Collections::emptyList); // Empty list will clear all existing dynamic_templates in index mapping
+            // Empty list will clear all existing dynamic_templates in index mapping
+            final List<Object> dynamicTemplatesInTemplate = new ArrayList<>();
+            for (final Map<String, DynamicTemplate> t : mapping.dynamicTemplates()) {
+                dynamicTemplatesInTemplate.add(getObjectAsHashMap(t));
+            }
 
-            @SuppressWarnings("unchecked")
-            final List<Object> dynamicTemplatesInIndex = (List<Object>) Optional
-                .ofNullable(indexTypeMappings.get(MAPPING_DYNAMIC_TEMPLATES_KEY))
-                .orElseGet(Collections::emptyList);
+            final List<Object> dynamicTemplatesInIndex = new ArrayList<>();
+            for (final Map<String, DynamicTemplate> t : indexMappings.dynamicTemplates()) {
+                dynamicTemplatesInIndex.add(getObjectAsHashMap(t));
+            }
 
             final List<Object> dynamicTemplatesUpdates = new ArrayList<>(dynamicTemplatesInTemplate);
 
@@ -353,8 +349,8 @@ public final class ElasticMappingUpdater
             // Check if 'type' has changed for object/nested properties
             final Map<String, ValueDifference<Object>> typeDifferences = entriesDiffering.entrySet().stream()
                 .filter(e -> ((Map<?, ?>) (e.getValue().leftValue())).containsKey(MAPPING_PROPS_KEY)
-                && (((Map<?, ?>) (e.getValue().leftValue())).containsKey(MAPPING_TYPE_KEY)
-                || ((Map<?, ?>) (e.getValue().rightValue())).containsKey(MAPPING_TYPE_KEY)))
+                && (!((Map<?, ?>) (e.getValue().leftValue())).get(MAPPING_TYPE_KEY).equals("object")
+                || !((Map<?, ?>) (e.getValue().rightValue())).get(MAPPING_TYPE_KEY).equals("object")))
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 
             if (!typeDifferences.isEmpty()) {
@@ -406,7 +402,7 @@ public final class ElasticMappingUpdater
         return mappingsChanges;
     }
 
-    private boolean hasDynamicTemplateChanged(List<Object> dynamicTemplatesInTemplate, List<Object> dynamicTemplatesInIndex)
+    private boolean hasDynamicTemplateChanged(final List<Object> dynamicTemplatesInTemplate, final List<Object> dynamicTemplatesInIndex)
     {
         if (dynamicTemplatesInTemplate.size() != dynamicTemplatesInIndex.size()) {
             return true;
@@ -451,4 +447,22 @@ public final class ElasticMappingUpdater
         }
     }
 
+    private Map<String,Object> getObjectAsHashMap(final Map<String, ? extends JsonpSerializable> obj) throws JsonProcessingException, IOException
+    {
+        final Map<String, Object> mapFromString = new LinkedHashMap<>();
+        for (final Entry<String, ? extends JsonpSerializable> val : obj.entrySet()) {
+            final String result = "{\"" + val.getKey() + "\":" + getStringFromObject(val.getValue()) + "}";
+            mapFromString.putAll(mapper.readValue(result, new TypeReference<Map<String, Object>>(){}));
+        }
+        return mapFromString;
+    }
+
+    private String getStringFromObject(final JsonpSerializable value) throws IOException
+    {
+        final StringWriter writer = new StringWriter();
+        try (final JacksonJsonpGenerator generator = new JacksonJsonpGenerator(new JsonFactory().createGenerator(writer))) {
+            value.serialize(generator, new JacksonJsonpMapper());
+        }
+        return writer.toString();
+    }
 }
