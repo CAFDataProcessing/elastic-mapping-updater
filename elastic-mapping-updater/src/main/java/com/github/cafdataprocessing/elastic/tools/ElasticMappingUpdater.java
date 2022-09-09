@@ -447,7 +447,8 @@ public final class ElasticMappingUpdater
         }
     }
 
-    private Map<String,Object> getObjectAsHashMap(final Map<String, ? extends JsonpSerializable> obj) throws JsonProcessingException, IOException
+    private Map<String,Object> getObjectAsHashMap(final Map<String, ? extends JsonpSerializable> obj)
+        throws JsonProcessingException, IOException
     {
         final Map<String, Object> mapFromString = new LinkedHashMap<>();
         for (final Entry<String, ? extends JsonpSerializable> val : obj.entrySet()) {
