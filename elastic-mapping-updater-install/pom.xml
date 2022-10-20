@@ -47,6 +47,7 @@
                             <goal>single</goal>
                         </goals>
                         <configuration>
+                            <outputDirectory>${project.basedir}</outputDirectory>
                             <appendAssemblyId>false</appendAssemblyId>
                             <descriptors>
                                 <descriptor>src/main/resources/elastic-mapping-updater.xml</descriptor>
@@ -56,6 +57,29 @@
                             </formats>
                             <tarLongFileMode>gnu</tarLongFileMode>
                             <finalName>elastic-mapping-updater-${project.version}</finalName>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <extensions>true</extensions>
+                <executions>
+                    <execution>
+                        <id>attach-artifacts</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>elastic-mapping-updater-${project.version}.tar.gz</file>
+                                    <type>tar.gz</type>
+                                </artifact>
+                            </artifacts>
                         </configuration>
                     </execution>
                 </executions>
