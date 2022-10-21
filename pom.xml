@@ -56,7 +56,7 @@
         <module>elastic-mapping-updater</module>
         <module>elastic-mapping-updater-cli</module>
         <module>elastic-mapping-updater-cli-image</module>
-        <module>elastic-mapping-updater-install</module>
+        <module>elastic-mapping-updater-cli-package</module>
     </modules>
 
     <scm>
