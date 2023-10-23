@@ -15,7 +15,7 @@
  */
 package com.github.cafdataprocessing.elastic.tools;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
