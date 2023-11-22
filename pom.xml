@@ -28,7 +28,7 @@
 
     <groupId>com.github.cafdataprocessing.elastic</groupId>
     <artifactId>elastic-mapping-updater-aggregator</artifactId>
-    <version>2.4.3-SNAPSHOT</version>
+    <version>2.5.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Elasticsearch Mapping Updater</name>
@@ -145,12 +145,12 @@
             <dependency>
                 <groupId>com.github.cafdataprocessing.elastic</groupId>
                 <artifactId>elastic-mapping-updater</artifactId>
-                <version>2.4.3-SNAPSHOT</version>
+                <version>2.5.0-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>com.github.cafdataprocessing.elastic</groupId>
                 <artifactId>elastic-mapping-updater-cli</artifactId>
-                <version>2.4.3-SNAPSHOT</version>
+                <version>2.5.0-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>com.github.spullara.mustache.java</groupId>
