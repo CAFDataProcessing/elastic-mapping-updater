@@ -70,6 +70,7 @@
         <dockerHubOrganization>cafdataprocessing</dockerHubOrganization>
         <dockerCafDataProcessingOrg>${dockerImagePrefix}${dockerHubOrganization}${dockerOrgSeperator}</dockerCafDataProcessingOrg>
         <dockerProjectVersion>${dockerVersionSeperator}${project.version}</dockerProjectVersion>
+        <projectDockerRegistry>elastic-mapping-updater-${project.version}.project-registries.local</projectDockerRegistry>
     </properties>
 
     <dependencyManagement>
@@ -312,6 +313,11 @@
 
     <build>
         <pluginManagement>
+            <plugin>
+                <groupId>com.github.cafapi.plugins.docker.versions</groupId>
+                <artifactId>docker-versions-maven-plugin</artifactId>
+                <version>1.0.0-SNAPSHOT</version>
+            </plugin>
             <plugins>
                 <plugin>
                     <groupId>io.fabric8</groupId>
