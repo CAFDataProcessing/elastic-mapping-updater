@@ -313,12 +313,12 @@
 
     <build>
         <pluginManagement>
-            <plugin>
-                <groupId>com.github.cafapi.plugins.docker.versions</groupId>
-                <artifactId>docker-versions-maven-plugin</artifactId>
-                <version>1.0.0-SNAPSHOT</version>
-            </plugin>
             <plugins>
+                <plugin>
+                    <groupId>com.github.cafapi.plugins.docker.versions</groupId>
+                    <artifactId>docker-versions-maven-plugin</artifactId>
+                    <version>1.0.0-SNAPSHOT</version>
+                </plugin>
                 <plugin>
                     <groupId>io.fabric8</groupId>
                     <artifactId>docker-maven-plugin</artifactId>
