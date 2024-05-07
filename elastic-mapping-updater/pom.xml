@@ -166,7 +166,7 @@
                     <images>
                         <!-- Elasticsearch image -->
                         <image>
-                            <name>${dockerHubPublic}/cafapi/opensuse-elasticsearch7:3</name>
+                            <name>${projectDockerRegistry}/cafapi/opensuse-elasticsearch7</name>
                             <alias>elasticsearch</alias>
                             <run>
                                 <env>
