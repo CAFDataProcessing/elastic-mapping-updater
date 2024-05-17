@@ -16,10 +16,6 @@
 package com.github.cafdataprocessing.elastic.tools.test;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -31,10 +27,17 @@ import java.util.Map;
 
 import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,8 +58,6 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import org.apache.http.conn.ConnectTimeoutException;
 
-import static org.junit.Assert.assertFalse;
-import org.junit.Before;
 import org.opensearch.client.json.JsonData;
 import org.opensearch.client.json.JsonpDeserializer;
 import org.opensearch.client.json.JsonpSerializable;
@@ -137,7 +138,7 @@ public final class ElasticMappingUpdaterIT
         }
     }
 
-    @Before
+    @BeforeEach
     public void init() throws IOException{
         deleteAllIndexTemplates();
     }
@@ -185,7 +186,7 @@ public final class ElasticMappingUpdaterIT
         // Verify new prop DATE_DISPOSED was added
         final Property dateDisposed = indexTypeMappings.properties().get("DATE_DISPOSED");
 
-        assertNotNull("testUpdateIndexesOfUpdatedTemplate", dateDisposed);
+        assertNotNull(dateDisposed, "testUpdateIndexesOfUpdatedTemplate");
 
         jsonString = "{"
             + "'TITLE':'doc2',"
@@ -255,33 +256,33 @@ public final class ElasticMappingUpdaterIT
 
         final Property headOfFamilyProp = indexTypeMappings.properties().get("IS_HEAD_OF_FAMILY");
         // Verify property mapping value is same as before
-        assertTrue("testUpdateUnsupportedChanges", headOfFamilyProp._kind().toString().equals("Boolean"));
+        assertEquals("Boolean", headOfFamilyProp._kind().toString(), "testUpdateUnsupportedChanges");
         final Object propIgnoreMalformed = headOfFamilyProp.boolean_().properties().get("ignore_malformed");
         // Verify new param was not added
-        assertNull("testUpdateUnsupportedChanges", propIgnoreMalformed);
+        assertNull(propIgnoreMalformed, "testUpdateUnsupportedChanges");
 
         final Property failuresProp = indexTypeMappings.properties().get("FAILURES");
         final Property jrIdProp = failuresProp.object().properties().get("AJP_JOB_RUN_ID");
         // Verify type is same as before
-        assertTrue("testUpdateUnsupportedChanges", jrIdProp._kind().toString().equals("Keyword"));
+        assertEquals("Keyword", jrIdProp._kind().toString(), "testUpdateUnsupportedChanges");
         // Verify param not removed
         final Object propjrIdIgnoreAbove = jrIdProp.keyword().ignoreAbove();
-        assertNotNull("testUpdateUnsupportedChanges", propjrIdIgnoreAbove);
+        assertNotNull(propjrIdIgnoreAbove, "testUpdateUnsupportedChanges");
         // Verify param not added
         final Object propjrIdIgnoreMalformed = jrIdProp.keyword().properties().get("ignore_malformed");
-        assertNull("testUpdateUnsupportedChanges", propjrIdIgnoreMalformed);
+        assertNull(propjrIdIgnoreMalformed, "testUpdateUnsupportedChanges");
 
         final Property propLC =  indexTypeMappings.properties().get("LANGUAGE_CODES");
         // Verify type was not changed
-        assertTrue("testUpdateUnsupportedChanges", propLC._kind().toString().equals("Object"));
+        assertEquals("Object", propLC._kind().toString(), "testUpdateUnsupportedChanges");
         final Object propLCIncludeInParent = propLC.object().properties().get("include_in_parent");
         // Verify new param was not added
-        assertNull("testUpdateUnsupportedChanges", propLCIncludeInParent);
+        assertNull(propLCIncludeInParent, "testUpdateUnsupportedChanges");
 
         // Verify index mapping of allowed field changes has been updated
         final Property personProp = indexTypeMappings.properties().get("PERSON");
         final Property ageProp = personProp.object().properties().get("AGE");
-        assertTrue("testUpdateUnsupportedChanges", ageProp._kind().toString().equals("Long"));
+        assertEquals("Long", ageProp._kind().toString(), "testUpdateUnsupportedChanges");
     }
 
     @Test
@@ -336,8 +337,8 @@ public final class ElasticMappingUpdaterIT
             fail();
         } else {
             final Map<String, DynamicTemplate> dynTemplate = dynamicTemplatesInTemplate.get(0);
-            assertTrue("testUpdateDynamicTemplateOverwrite", dynamicTemplatesInTemplate.size() == 1);
-            assertNotNull("testUpdateDynamicTemplateOverwrite", dynTemplate.get("LONG_TEMPLATE"));
+            assertEquals(1, dynamicTemplatesInTemplate.size(), "testUpdateDynamicTemplateOverwrite");
+            assertNotNull(dynTemplate.get("LONG_TEMPLATE"), "testUpdateDynamicTemplateOverwrite");
         }
 
         // Index more data
@@ -439,28 +440,28 @@ public final class ElasticMappingUpdaterIT
         LOGGER.info("idProp {} ", getObjectAsString(idProp));
         final Object idPropValue = idProp.long_().properties().get("ignore_malformed");
         // Verify property mapping parameter was removed
-        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", idPropValue);
+        assertNull(idPropValue, "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         // Verify index mapping of unsupported field changes has not changed
         final Property langProp = props.get("LANGUAGE_CODES");
         // Verify property mapping value is same as before
-        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", langProp._kind().toString().equals("Nested"));
+        assertTrue(langProp._kind().toString().equals("Nested"), "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         // Verify index mapping of unsupported field changes has been updated with allowed changes
         final Property targetRefProp = props.get("TARGET_REFERENCES");
         final Map<String, Property> targetRefProps = targetRefProp.object().properties();
         // Verify new property is added
         final Property tRefMapping = targetRefProps.get("TARGET_REFERENCE");
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", tRefMapping);
+        assertNotNull(tRefMapping, "testUpdateIndexesOfUnSupportedChangesInTemplate");
         // Verify unsupported change to nested property is not applied
         final Boolean propDocValuesValue = tRefMapping.keyword().docValues();
-        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", propDocValuesValue);
+        assertFalse(propDocValuesValue, "testUpdateIndexesOfUnSupportedChangesInTemplate");
         // Verify change to nested property is not applied, param not removed
         final Integer propIgnoreAboveValue = tRefMapping.keyword().ignoreAbove();
-        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", 10922 == propIgnoreAboveValue);
+        assertEquals(10922, propIgnoreAboveValue, "testUpdateIndexesOfUnSupportedChangesInTemplate");
         // Verify new nested property is added
         final Property destProp = targetRefProps.get("DESTINATION_ID");
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", destProp);
+        assertNotNull(destProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         // Index more data
         jsonString = "{"
@@ -526,39 +527,39 @@ public final class ElasticMappingUpdaterIT
         final Map<String, Property> props =  indexTypeMappings.properties();
 
         final Property dateDisposedProp =  props.get("DATE_DISPOSED");
-        assertNotNull("testUpdateIndexesWithNestedFieldChanges", dateDisposedProp);
+        assertNotNull(dateDisposedProp, "testUpdateIndexesWithNestedFieldChanges");
 
         final Property entitiesProp = props.get("ENTITIES");
         LOGGER.info("entitiesPropMapping {} ", getObjectAsString(entitiesProp));
         final Map<String, Property> entitiesProps = entitiesProp.object().properties();
         final Property grammarIdProp =  entitiesProps.get("GRAMMAR_ID");
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", grammarIdProp);
+        assertNotNull(grammarIdProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
         // Verify change to nested property is applied, param not added (change not allowed)
         final Object nullValueProp = grammarIdProp.keyword().nullValue();
-        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", nullValueProp);
+        assertNull(nullValueProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         // Verify index mapping of unsupported field changes to nested property has not changed
         final Property langProp = props.get("LANGUAGE_CODES");
         // Verify property mapping type and params are same as before
-        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", langProp._kind().toString().equals("Nested"));
+        assertEquals("Nested", langProp._kind().toString(), "testUpdateIndexesOfUnSupportedChangesInTemplate");
         final Boolean includeInParentProp = langProp.nested().includeInParent();
-        assertTrue("testUpdateIndexesOfUnSupportedChangesInTemplate", includeInParentProp);
+        assertTrue(includeInParentProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         final Map<String, Property> langProps = langProp.nested().properties();
         // Verify new property is added
         final Property codeProp = langProps.get("CODE");
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", codeProp);
+        assertNotNull(codeProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
         // Verify unsupported change to nested property is not applied, param not removed
         final Object codeStoreProp = codeProp.keyword().store();
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", codeStoreProp);
+        assertNotNull(codeStoreProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
         // Verify change to nested property is not applied, param not removed
         final Object ignoreAboveProp = codeProp.keyword().ignoreAbove();
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", ignoreAboveProp);
+        assertNotNull(ignoreAboveProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         final Property confidenceProp = langProps.get("CONFIDENCE");
         // Verify unsupported change to nested property is not applied, param not removed
         final Object confidenceStoreProp = confidenceProp.double_().store();
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", confidenceStoreProp);
+        assertNotNull(confidenceStoreProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         // Index more data
         jsonString = "{"
@@ -633,20 +634,20 @@ public final class ElasticMappingUpdaterIT
         // Verify param not removed (change not allowed)
         assertNotNull(idProp.keyword().nullValue());
         final Property pTimeProp = processingProps.get("P_TIME");
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", pTimeProp);
+        assertNotNull(pTimeProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
         // Verify unsupported change to nested property is not applied, param not removed
         final Object propFormatValue = pTimeProp.date().format();
-        assertNotNull("testUpdateIndexesOfUnSupportedChangesInTemplate", propFormatValue);
+        assertNotNull(propFormatValue, "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         final Property refProp = processingProps.get("REF");
         // Verify change to nested property is applied, param removed
         final Object refIgnoreMalformedProp = refProp.integer().ignoreMalformed();
-        assertNull("testUpdateIndexesOfUnSupportedChangesInTemplate", refIgnoreMalformedProp);
+        assertNull(refIgnoreMalformedProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
 
         final Property codeProp = processingProps.get("CODE");
         // Verify change to nested property is applied, param added
         final Boolean codeIgnoreMalformedProp = codeProp.integer().ignoreMalformed();
-        assertFalse("testUpdateIndexesOfUnSupportedChangesInTemplate", codeIgnoreMalformedProp);
+        assertFalse(codeIgnoreMalformedProp, "testUpdateIndexesOfUnSupportedChangesInTemplate");
     }
 
     @Test
@@ -1024,7 +1025,7 @@ public final class ElasticMappingUpdaterIT
         final long totalDocs = searchResponse.hits().total().value();
         LOGGER.info("Hits : {}", totalDocs);
 
-        assertTrue("Got test document", totalDocs == expectedHitCount);
+        assertEquals(expectedHitCount, totalDocs, "Got test document");
 
         final List<Hit<JsonData>> searchHits = searchResponse.hits().hits();
 
@@ -1085,7 +1086,7 @@ public final class ElasticMappingUpdaterIT
             final Response response = client.performRequest(idxDocRequest);
             final JsonParser parser = Json.createParser(new StringReader(EntityUtils.toString(response.getEntity())));
             final IndexResponse indexResponse = IndexResponse._DESERIALIZER.deserialize(parser, new JacksonJsonpMapper());
-            assertTrue(indexResponse.result().equals(Result.Created));
+            assertEquals(Result.Created, indexResponse.result());
         } catch (final IOException ex) {
             return isServiceUnAvailableException(ex);
         }
