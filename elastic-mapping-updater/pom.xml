@@ -128,7 +128,7 @@
                     <environmentVariables>
                         <CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>http</CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>
                         <CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>${docker.host.address}</CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>
-                        <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${es.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
+                        <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${os.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
                         <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>
                         <CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>60000</CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>
                         <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
@@ -164,24 +164,24 @@
                     <verbose>true</verbose>
                     <removeVolumes>true</removeVolumes>
                     <images>
-                        <!-- Elasticsearch image -->
+                        <!-- OpenSearch image -->
                         <image>
-                            <name>${projectDockerRegistry}/cafapi/opensuse-elasticsearch7</name>
-                            <alias>elasticsearch</alias>
+                            <name>${projectDockerRegistry}/cafapi/opensuse-opensearch1</name>
+                            <alias>opensearch</alias>
                             <run>
                                 <env>
                                     <discovery.type>single-node</discovery.type>
                                 </env>
                                 <ports>
-                                    <port>${es.http.port}:9200</port>
-                                    <port>${es.client.port}:9300</port>
+                                    <port>${os.http.port}:9200</port>
+                                    <port>${os.client.port}:9300</port>
                                 </ports>
                                 <log>
                                     <enabled>true</enabled>
                                 </log>
                                 <wait>
                                     <http>
-                                        <url>http://${docker.host.address}:${es.http.port}</url>
+                                        <url>http://${docker.host.address}:${os.http.port}</url>
                                     </http>
                                     <time>120000</time>
                                     <shutdown>500</shutdown>
@@ -199,8 +199,8 @@
         <profile>
             <id>use-default-fixed-ports</id>
             <properties>
-                <es.http.port>9200</es.http.port>
-                <es.client.port>9300</es.client.port>
+                <os.http.port>9200</os.http.port>
+                <os.client.port>9300</os.client.port>
             </properties>
         </profile>
     </profiles>
