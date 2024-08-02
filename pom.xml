@@ -345,6 +345,11 @@
                 <configuration>
                     <imageManagement>
                         <image>
+                            <repository>${dockerHubPublic}/cafapi/opensuse-elasticsearch7</repository>
+                            <tag>3.5.0</tag>
+                            <digest>sha256:bdddac0da18eb6a8c90b4fb41469e00be68689ebbd1393e74d5bbf8cdeb2314d</digest>
+                        </image>
+                        <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
                             <tag>3.2.0</tag>
                             <digest>sha256:ebd35d23f3201c82cd74e63b16025a6abbb3b93b9ddda2db854328104f2118ea</digest>

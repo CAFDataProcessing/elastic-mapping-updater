@@ -114,27 +114,50 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <executions>
                     <execution>
+                        <id>elasticsearch</id>
                         <goals>
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
+                        <configuration>
+                            <runOrder>alphabetical</runOrder>
+                            <systemPropertyVariables>
+                                <docker.host.address>${docker.host.address}</docker.host.address>
+                            </systemPropertyVariables>
+                            <environmentVariables>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>http</CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>${docker.host.address}</CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${es.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>60000</CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>
+                                <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
+                                <ELASTIC_MAPPING_UPDATER_LOG_LEVEL>TRACE</ELASTIC_MAPPING_UPDATER_LOG_LEVEL>
+                            </environmentVariables>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>opensearch</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                        <configuration>
+                            <runOrder>alphabetical</runOrder>
+                            <systemPropertyVariables>
+                                <docker.host.address>${docker.host.address}</docker.host.address>
+                            </systemPropertyVariables>
+                            <environmentVariables>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>http</CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>${docker.host.address}</CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${os.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>
+                                <CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>60000</CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>
+                                <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
+                                <ELASTIC_MAPPING_UPDATER_LOG_LEVEL>TRACE</ELASTIC_MAPPING_UPDATER_LOG_LEVEL>
+                            </environmentVariables>
+                        </configuration>
                     </execution>
                 </executions>
-                <configuration>
-                    <runOrder>alphabetical</runOrder>
-                    <systemPropertyVariables>
-                        <docker.host.address>${docker.host.address}</docker.host.address>
-                    </systemPropertyVariables>
-                    <environmentVariables>
-                        <CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>http</CAF_SCHEMA_UPDATER_ELASTIC_PROTOCOL>
-                        <CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>${docker.host.address}</CAF_SCHEMA_UPDATER_ELASTIC_HOSTNAMES>
-                        <CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>${os.http.port}</CAF_SCHEMA_UPDATER_ELASTIC_REST_PORT>
-                        <CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>5000</CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT>
-                        <CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>60000</CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT>
-                        <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
-                        <ELASTIC_MAPPING_UPDATER_LOG_LEVEL>TRACE</ELASTIC_MAPPING_UPDATER_LOG_LEVEL>
-                    </environmentVariables>
-                </configuration>
             </plugin>
 
             <plugin>
@@ -164,6 +187,30 @@
                     <verbose>true</verbose>
                     <removeVolumes>true</removeVolumes>
                     <images>
+                        <!-- Elasticsearch image -->
+                        <image>
+                            <name>${projectDockerRegistry}/cafapi/opensuse-elasticsearch7</name>
+                            <alias>elasticsearch</alias>
+                            <run>
+                                <env>
+                                    <discovery.type>single-node</discovery.type>
+                                </env>
+                                <ports>
+                                    <port>${es.http.port}:9200</port>
+                                    <port>${es.client.port}:9300</port>
+                                </ports>
+                                <log>
+                                    <enabled>true</enabled>
+                                </log>
+                                <wait>
+                                    <http>
+                                        <url>http://${docker.host.address}:${es.http.port}</url>
+                                    </http>
+                                    <time>120000</time>
+                                    <shutdown>500</shutdown>
+                                </wait>
+                            </run>
+                        </image>
                         <!-- OpenSearch image -->
                         <image>
                             <name>${projectDockerRegistry}/cafapi/opensuse-opensearch1</name>
@@ -199,8 +246,10 @@
         <profile>
             <id>use-default-fixed-ports</id>
             <properties>
-                <os.http.port>9200</os.http.port>
-                <os.client.port>9300</os.client.port>
+                <es.http.port>9200</es.http.port>
+                <es.client.port>9300</es.client.port>
+                <os.http.port>9210</os.http.port>
+                <os.client.port>9310</os.client.port>
             </properties>
         </profile>
     </profiles>
