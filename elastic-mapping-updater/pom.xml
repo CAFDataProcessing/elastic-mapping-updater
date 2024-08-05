@@ -133,6 +133,8 @@
                                 <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
                                 <ELASTIC_MAPPING_UPDATER_LOG_LEVEL>TRACE</ELASTIC_MAPPING_UPDATER_LOG_LEVEL>
                             </environmentVariables>
+                            <summaryFile>target/failsafe-reports/failsafe-summary-elasticsearch.xml</summaryFile>
+                            <reportNameSuffix>elasticsearch</reportNameSuffix>
                         </configuration>
                     </execution>
                     <execution>
@@ -155,6 +157,21 @@
                                 <CAF_LOG_LEVEL>INFO</CAF_LOG_LEVEL>
                                 <ELASTIC_MAPPING_UPDATER_LOG_LEVEL>TRACE</ELASTIC_MAPPING_UPDATER_LOG_LEVEL>
                             </environmentVariables>
+                            <summaryFile>target/failsafe-reports/failsafe-summary-opensearch.xml</summaryFile>
+                            <reportNameSuffix>opensearch</reportNameSuffix>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>verify</id>
+                        <goals>
+                            <goal>verify</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <summaryFiles>
+                                <summaryFile>target/failsafe-reports/failsafe-summary-elasticsearch.xml</summaryFile>
+                                <summaryFile>target/failsafe-reports/failsafe-summary-opensearch.xml</summaryFile>
+                            </summaryFiles>
                         </configuration>
                     </execution>
                 </executions>
