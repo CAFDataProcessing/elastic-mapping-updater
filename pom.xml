@@ -350,6 +350,11 @@
                             <digest>sha256:bdddac0da18eb6a8c90b4fb41469e00be68689ebbd1393e74d5bbf8cdeb2314d</digest>
                         </image>
                         <image>
+                            <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
+                            <tag>3.2.0</tag>
+                            <digest>sha256:ebd35d23f3201c82cd74e63b16025a6abbb3b93b9ddda2db854328104f2118ea</digest>
+                        </image>
+                        <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-jre21</repository>
                             <tag>4.1.0</tag>
                             <digest>sha256:547758c42c0ec49654dd92447e5cc1e630b8df704d6898ddb8a8a3864a092967</digest>
