@@ -62,7 +62,7 @@
                         <image>
                             <name>${dockerCafDataProcessingOrg}elastic-mapping-updater${dockerProjectVersion}</name>
                             <build>
-                                <from>${projectDockerRegistry}/cafapi/opensuse-jre21</from>
+                                <from>${projectDockerRegistry}/cafapi/oraclelinux-jre21</from>
                                 <entryPoint>
                                     <arg>/tini</arg>
                                     <arg>--</arg>
