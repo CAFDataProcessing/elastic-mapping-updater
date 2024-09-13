@@ -355,9 +355,9 @@
                             <digest>sha256:14937cec59eb28ed4273710b1b7a40e8a0a697dc355283f383dba67f6c85d72d</digest>
                         </image>
                         <image>
-                            <targetRepository>cafapi/oraclelinux-jre21</targetRepository>
-                            <repository>${dockerHubPublic}/cafapi/prereleases</repository>
-                            <tag>oraclelinux-jre21-1.0.0-SNAPSHOT</tag>
+                            <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
+                            <tag>1.0.0</tag>
+                            <digest>sha256:23ca581d948e68681b95b2390c3e7a55e6e043046a540983912887f1ece43be4</digest>
                         </image>
                     </imageManagement>
                 </configuration>
