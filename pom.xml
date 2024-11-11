@@ -265,7 +265,7 @@
             <dependency>
                 <groupId>org.checkerframework</groupId>
                 <artifactId>checker-qual</artifactId>
-                <version>3.48.1</version>
+                <version>3.48.2</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse</groupId>
@@ -290,7 +290,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-java</artifactId>
-                <version>2.16.0</version>
+                <version>2.17.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
@@ -301,7 +301,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-rest-client</artifactId>
-                <version>2.17.1</version>
+                <version>2.18.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
@@ -361,13 +361,13 @@
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
-                            <tag>3.3.2</tag>
-                            <digest>sha256:5af4301f9cf4bbd426a4ed2cf87dd1e93fbe7b14a40b20f2443d2bf6effdd3bd</digest>
+                            <tag>3.3.3</tag>
+                            <digest>sha256:93d3169f85275ba1a9730118ad4e72300823aa117b27fd0c13e6b3eaea144029</digest>
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
-                            <tag>1.1.0</tag>
-                            <digest>sha256:ed8093edcab86b8d35e3b6db21f7f136d36068cddd67a9ce728661b6266f3eb4</digest>
+                            <tag>1.1.1</tag>
+                            <digest>sha256:0b0656c185dd3ed99bc2d30e14bdca22e489ecf2860da03352be77a03e780409</digest>
                         </image>
                     </imageManagement>
                 </configuration>
