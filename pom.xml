@@ -101,24 +101,24 @@
                 <version>2.18.1</version>
             </dependency>
             <dependency>
+                <groupId>com.github.cafapi.common</groupId>
+                <artifactId>util-process-identifier</artifactId>
+                <version>4.0.1-694</version>
+            </dependency>
+            <dependency>
                 <groupId>com.github.cafapi.logging</groupId>
                 <artifactId>caf-logging-common</artifactId>
-                <version>2.1.0-374</version>
+                <version>3.0.0-407</version>
             </dependency>
             <dependency>
                 <groupId>com.github.cafapi.logging</groupId>
                 <artifactId>caf-logging-logback</artifactId>
-                <version>2.1.0-374</version>
+                <version>3.0.0-407</version>
             </dependency>
             <dependency>
                 <groupId>com.github.cafapi.logging</groupId>
                 <artifactId>caf-logging-logback-converters</artifactId>
-                <version>2.1.0-374</version>
-            </dependency>
-            <dependency>
-                <groupId>com.github.cafapi.util</groupId>
-                <artifactId>util-process-identifier</artifactId>
-                <version>3.2.0-684</version>
+                <version>3.0.0-407</version>
             </dependency>
             <dependency>
                 <groupId>com.github.cafdataprocessing.elastic</groupId>
@@ -138,7 +138,7 @@
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>
-                <version>2.35.1</version>
+                <version>2.36.0</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -173,7 +173,7 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
-                <version>3.6.11</version>
+                <version>3.7.0</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.annotation</groupId>
@@ -250,12 +250,12 @@
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-api</artifactId>
-                <version>2.24.1</version>
+                <version>2.24.2</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-to-slf4j</artifactId>
-                <version>2.24.1</version>
+                <version>2.24.2</version>
             </dependency>
             <dependency>
                 <groupId>org.apiguardian</groupId>
@@ -290,7 +290,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-java</artifactId>
-                <version>2.17.0</version>
+                <version>2.18.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
