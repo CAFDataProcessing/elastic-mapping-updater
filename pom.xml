@@ -148,7 +148,7 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
-                <version>33.4.5-jre</version>
+                <version>33.4.7-jre</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -198,7 +198,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-text</artifactId>
-                <version>1.13.0</version>
+                <version>1.13.1</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
@@ -235,7 +235,7 @@
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
-                <version>5.4.2</version>
+                <version>5.4.3</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents.core5</groupId>
@@ -280,12 +280,12 @@
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter-api</artifactId>
-                <version>5.12.1</version>
+                <version>5.12.2</version>
             </dependency>
             <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-commons</artifactId>
-                <version>1.12.1</version>
+                <version>1.12.2</version>
             </dependency>
             <dependency>
                 <groupId>org.opensearch.client</groupId>
@@ -361,13 +361,13 @@
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
-                            <tag>3.3.7</tag>
-                            <digest>sha256:8963ca44bcdbf2cc0c8d5a9f3c23273c991794adea89386022c69f3fe40405ea</digest>
+                            <tag>3.3.8</tag>
+                            <digest>sha256:474d059260c9cee815a459c398ea7712c833f398093f144557845002ffb2ddca</digest>
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
-                            <tag>1.1.9</tag>
-                            <digest>sha256:b06fdd6a847d507e704bc847be5ce4d60861c95344c7e0aac861c9535fa27ec9</digest>
+                            <tag>1.1.10</tag>
+                            <digest>sha256:ffcb7999be8fc62a5c8220a047553e43bdfb8af1602c053c46ce8c273ee931b4</digest>
                         </image>
                     </imageManagement>
                 </configuration>
