@@ -235,7 +235,7 @@
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
-                <version>5.4.4</version>
+                <version>5.5</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents.core5</groupId>
@@ -300,12 +300,12 @@
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter-api</artifactId>
-                <version>5.12.2</version>
+                <version>5.13.0</version>
             </dependency>
             <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-commons</artifactId>
-                <version>1.12.2</version>
+                <version>1.13.0</version>
             </dependency>
             <dependency>
                 <groupId>org.opensearch.client</groupId>
@@ -386,8 +386,8 @@
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
-                            <tag>1.1.13</tag>
-                            <digest>sha256:c0e4c7ac7a0bc8dfd378c3d965079c6c6ed8597613521b229ef4d0c7f0d39ac1</digest>
+                            <tag>1.2.0</tag>
+                            <digest>sha256:f7ed6ed0caa4b51c04bebf83bb381c796fb319b923dd68d88f873f8c03f3f353</digest>
                         </image>
                     </imageManagement>
                 </configuration>
