@@ -173,7 +173,7 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
-                <version>3.7.5</version>
+                <version>3.7.6</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.annotation</groupId>
@@ -201,38 +201,6 @@
                 <version>1.13.1</version>
             </dependency>
             <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpasyncclient</artifactId>
-                <version>4.1.5</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>commons-logging</groupId>
-                        <artifactId>commons-logging</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpclient</artifactId>
-                <version>4.5.14</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>commons-logging</groupId>
-                        <artifactId>commons-logging</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpcore</artifactId>
-                <version>4.4.16</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpcore-nio</artifactId>
-                <version>4.4.16</version>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
                 <version>5.4.4</version>
@@ -245,6 +213,11 @@
             <dependency>
                 <groupId>org.apache.httpcomponents.core5</groupId>
                 <artifactId>httpcore5-h2</artifactId>
+                <version>5.3.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5-reactive</artifactId>
                 <version>5.3.4</version>
             </dependency>
             <dependency>
@@ -261,6 +234,21 @@
                 <groupId>org.apiguardian</groupId>
                 <artifactId>apiguardian-api</artifactId>
                 <version>1.1.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bc-fips</artifactId>
+                <version>2.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bctls-fips</artifactId>
+                <version>2.1.20</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcutil-fips</artifactId>
+                <version>2.1.4</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse</groupId>
@@ -290,7 +278,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-java</artifactId>
-                <version>2.23.0</version>
+                <version>3.0.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
@@ -301,7 +289,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-rest-client</artifactId>
-                <version>2.19.1</version>
+                <version>3.0.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
@@ -361,13 +349,13 @@
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
-                            <tag>3.3.8</tag>
-                            <digest>sha256:474d059260c9cee815a459c398ea7712c833f398093f144557845002ffb2ddca</digest>
+                            <tag>3.3.9</tag>
+                            <digest>sha256:328783557e84e51043a8c6dd8aa235fbfdb492eee93d1d6d6b9b849a84d0b86b</digest>
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
-                            <tag>1.1.12</tag>
-                            <digest>sha256:8eb5136a2ab064831c855eb4ebaf10e2c09f075aa8c2003b8644a9dbbcbe3ac5</digest>
+                            <tag>1.1.13</tag>
+                            <digest>sha256:c0e4c7ac7a0bc8dfd378c3d965079c6c6ed8597613521b229ef4d0c7f0d39ac1</digest>
                         </image>
                     </imageManagement>
                 </configuration>
