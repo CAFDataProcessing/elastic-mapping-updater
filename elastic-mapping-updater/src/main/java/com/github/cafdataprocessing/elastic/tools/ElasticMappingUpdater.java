@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import java.io.StringWriter;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hc.core5.http.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.opensearch.client.json.JsonpSerializable;
@@ -108,8 +109,7 @@ public final class ElasticMappingUpdater
         final String esPassword,
         final int esConnectTimeout,
         final int esSocketTimeout
-    ) throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
-    {
+    ) throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException, ParseException {
         final ElasticMappingUpdater updater
             = new ElasticMappingUpdater(dryRun, esHostNames, esProtocol, esRestPort, esUsername, esPassword,
                                         esConnectTimeout, esSocketTimeout);
@@ -142,8 +142,7 @@ public final class ElasticMappingUpdater
     }
 
     private void updateIndexes()
-        throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException
-    {
+        throws IOException, GetIndexException, GetTemplatesException, UnexpectedResponseException, ParseException {
         final Map<String, TemplateMapping> templates = elasticRequestHandler.getTemplates();
         LOGGER.info("Templates found in Elasticsearch: {}", templates.keySet());
         for (final Entry<String, TemplateMapping> template : templates.entrySet()) {
@@ -152,8 +151,7 @@ public final class ElasticMappingUpdater
     }
 
     private void updateIndexesForTemplate(final String templateName, final TemplateMapping template)
-        throws IOException, GetIndexException, UnexpectedResponseException
-    {
+        throws IOException, GetIndexException, UnexpectedResponseException, ParseException {
         LOGGER.info("---- Analyzing indexes matching template '{}' ----", templateName);
 
         final List<String> patterns = template.indexPatterns();
