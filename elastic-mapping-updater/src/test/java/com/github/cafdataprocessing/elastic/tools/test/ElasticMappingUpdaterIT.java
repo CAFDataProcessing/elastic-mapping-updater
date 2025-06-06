@@ -25,14 +25,17 @@ import java.io.StringReader;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.http.HttpHost;
-import org.apache.http.util.EntityUtils;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+
+import org.apache.hc.client5.http.ConnectTimeoutException;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opensearch.client.Request;
@@ -56,7 +59,6 @@ import java.net.HttpRetryException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import org.apache.http.conn.ConnectTimeoutException;
 
 import org.opensearch.client.json.JsonData;
 import org.opensearch.client.json.JsonpDeserializer;
@@ -95,7 +97,7 @@ public final class ElasticMappingUpdaterIT
         connectTimeout = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_CONNECT_TIMEOUT"));
         socketTimeout = Integer.parseInt(System.getenv("CAF_SCHEMA_UPDATER_ELASTIC_SOCKET_TIMEOUT"));
 
-        client = RestClient.builder(new HttpHost(host, port, protocol)).build();
+        client = RestClient.builder(new HttpHost(protocol, host, port)).build();
     }
 
     private void deleteAllIndexTemplates() throws IOException
@@ -144,8 +146,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateIndexesOfUpdatedTemplate() throws IOException, GetIndexException, InterruptedException
-    {
+    public void testUpdateIndexesOfUpdatedTemplate() throws IOException, GetIndexException, InterruptedException, ParseException {
         LOGGER.info("Running test 'testUpdateIndexesOfUpdatedTemplate'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template1.json";
@@ -171,7 +172,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testUpdateIndexesOfUpdatedTemplate - Updating template {}", templateName);
 
@@ -200,12 +201,11 @@ public final class ElasticMappingUpdaterIT
          // Index more data
         createIndex(indexName, "2", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 2);
     }
 
     @Test
-    public void testUpdateUnsupportedChanges() throws IOException, GetIndexException, InterruptedException
-    {
+    public void testUpdateUnsupportedChanges() throws IOException, GetIndexException, InterruptedException, ParseException {
         LOGGER.info("Running test 'testUpdateUnsupportedChanges'...");
         final String templateName = "acme-sample-template";
         final String origTemplateSourceFile = "/template3.json";
@@ -241,7 +241,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testUpdateUnsupportedChanges - Updating template {}", templateName);
 
@@ -286,8 +286,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateDynamicTemplateOverwrite() throws IOException, GetIndexException, InterruptedException
-    {
+    public void testUpdateDynamicTemplateOverwrite() throws IOException, GetIndexException, InterruptedException, ParseException {
         LOGGER.info("Running test 'testUpdateDynamicTemplateOverwrite'...");
         final String templateName = "sample-template";
         // This template has a dynamic_template called "EVERY_THING_ELSE_TEMPLATE"
@@ -319,7 +318,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testUpdateDynamicTemplateOverwrite - Updating template {}", templateName);
         // Create a template
@@ -354,7 +353,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "2", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 2);
     }
 
     @Test
@@ -379,8 +378,7 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
-    public void testUpdateIndexesOfUnSupportedChangesInTemplate() throws IOException, GetIndexException, InterruptedException
-    {
+    public void testUpdateIndexesOfUnSupportedChangesInTemplate() throws IOException, GetIndexException, InterruptedException, ParseException {
         LOGGER.info("Running test 'testUpdateIndexesOfUnSupportedChangesInTemplate'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template8.json";
@@ -419,7 +417,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testUpdateIndexesOfUnSupportedChangesInTemplate - Updating template {}", templateName);
         // Create a template
@@ -476,12 +474,11 @@ public final class ElasticMappingUpdaterIT
         jsonString = jsonString.replaceAll("'", "\"");
         createIndex(indexName, "2", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 2);
     }
 
     @Test
-    public void testUpdateIndexesWithNestedFieldChanges() throws IOException, GetIndexException, InterruptedException
-    {
+    public void testUpdateIndexesWithNestedFieldChanges() throws IOException, GetIndexException, InterruptedException, ParseException {
         LOGGER.info("Running test 'testUpdateIndexesWithNestedFieldChanges'...");
         final String templateName = "sample-template";
         final String origTemplateSourceFile = "/template10.json";
@@ -513,7 +510,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testUpdateIndexesWithNestedFieldChanges - Updating template {}", templateName);
         // Create a template
@@ -574,7 +571,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "2", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 2);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 2);
     }
 
     @Test
@@ -607,7 +604,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testAttemptRemoveUnchangeableProperty - Updating template {}", templateName);
         // Create a template
@@ -672,7 +669,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testRemoveParams - Updating template {}", templateName);
         // Create a template
@@ -788,7 +785,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testAddParams - Updating template {}", templateName);
         // Create a template
@@ -903,7 +900,7 @@ public final class ElasticMappingUpdaterIT
 
         createIndex(indexName, "1", "1", jsonString);
 
-        verifyIndexData(indexName, QueryBuilders.matchAll().build()._toQuery(), 1);
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
 
         LOGGER.info("testAddRemoveParams - Updating template {}", templateName);
         // Create a template
@@ -957,7 +954,8 @@ public final class ElasticMappingUpdaterIT
         try {
             ElasticMappingUpdater.update(false, host, protocol, port, username, password, connectTimeout,
                                          socketTimeout);
-        } catch (final IOException | UnexpectedResponseException | GetIndexException | GetTemplatesException e) {
+        } catch (final IOException | UnexpectedResponseException | GetIndexException | GetTemplatesException |
+                       ParseException e) {
             LOGGER.error(testName, e);
             fail(testName + ":" + e);
         }
@@ -990,8 +988,7 @@ public final class ElasticMappingUpdaterIT
         }
     }
 
-    private void verifyIndexData(final String indexName, final Query query, final long expectedHitCount) throws IOException
-    {
+    private void verifyIndexData(final String indexName, final Query query, final long expectedHitCount) throws IOException, ParseException {
         LOGGER.info("verifyIndexData..." );
         final Request searchRequest =
             new Request("POST", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName) + "/_search");
@@ -1040,8 +1037,7 @@ public final class ElasticMappingUpdaterIT
         }
     }
 
-    private TypeMapping getIndexMapping(final String testName, final String indexName) throws IOException, GetIndexException
-    {
+    private TypeMapping getIndexMapping(final String testName, final String indexName) throws IOException, GetIndexException, ParseException {
         LOGGER.info("{} - Get index {}", testName, indexName);
         final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
         final Response response = client.performRequest(request);
@@ -1087,7 +1083,7 @@ public final class ElasticMappingUpdaterIT
             final JsonParser parser = Json.createParser(new StringReader(EntityUtils.toString(response.getEntity())));
             final IndexResponse indexResponse = IndexResponse._DESERIALIZER.deserialize(parser, new JacksonJsonpMapper());
             assertEquals(Result.Created, indexResponse.result());
-        } catch (final IOException ex) {
+        } catch (final IOException | ParseException ex) {
             return isServiceUnAvailableException(ex);
         }
         return false;
