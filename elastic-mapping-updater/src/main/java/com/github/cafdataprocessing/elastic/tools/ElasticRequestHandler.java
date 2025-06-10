@@ -25,9 +25,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.util.EntityUtils;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
@@ -65,8 +66,7 @@ final class ElasticRequestHandler
     }
 
     Map<String, TemplateMapping> getTemplates()
-        throws IOException, GetTemplatesException
-    {
+        throws IOException, GetTemplatesException, ParseException {
         LOGGER.debug("Getting templates...");
         final Request request = new Request("GET", "/_template");
         final Response response = elasticClient.performRequest(request);
@@ -88,8 +88,7 @@ final class ElasticRequestHandler
         }
     }
 
-    List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException
-    {
+    List<String> getIndexNames(final List<String> indexNamePatterns) throws UnexpectedResponseException, IOException, ParseException {
         LOGGER.debug("Getting index names matching pattern(s) : {}...", indexNamePatterns);
         if (indexNamePatterns == null || indexNamePatterns.isEmpty()) {
             return Collections.emptyList();
@@ -116,8 +115,7 @@ final class ElasticRequestHandler
         }
     }
 
-    public TypeMapping getIndexMapping(final String indexName) throws IOException, GetIndexException
-    {
+    public TypeMapping getIndexMapping(final String indexName) throws IOException, GetIndexException, ParseException {
         LOGGER.debug("Getting index mapping for: {}...", indexName);
         final Request request = new Request("GET", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName));
         final Response response = elasticClient.performRequest(request);
@@ -139,8 +137,7 @@ final class ElasticRequestHandler
     }
 
     boolean updateIndexMapping(final String indexName, final Map<String, Object> mappings)
-        throws IOException, UnexpectedResponseException
-    {
+        throws IOException, UnexpectedResponseException, ParseException {
         LOGGER.debug("Updating mapping of index {} with these changes {}...", indexName, mappings);
         final String mappingSource = objectMapper.writeValueAsString(mappings);
         final Request request = new Request("PUT", "/" + UrlEscapers.urlPathSegmentEscaper().escape(indexName) + "/_mapping");
@@ -152,7 +149,7 @@ final class ElasticRequestHandler
         final HttpEntity responseEntity = response.getEntity();
 
         // Get the Content-Type header
-        final ContentType contentType = ContentType.get(responseEntity);
+        final ContentType contentType = ContentType.parse(responseEntity.getContentType());
         if (contentType == null) {
             throw new UnexpectedResponseException("Failed to get the content type from the response entity");
         }
@@ -181,15 +178,14 @@ final class ElasticRequestHandler
         }
     }
 
-    private JsonNode performRequest(final Request request) throws UnexpectedResponseException, IOException
-    {
+    private JsonNode performRequest(final Request request) throws UnexpectedResponseException, IOException, ParseException {
         final Response response = elasticClient.performRequest(request);
 
         // Get the response entity
         final HttpEntity responseEntity = response.getEntity();
 
         // Get the Content-Type header
-        final ContentType contentType = ContentType.get(responseEntity);
+        final ContentType contentType = ContentType.parse(responseEntity.getContentType());
         if (contentType == null) {
             throw new UnexpectedResponseException("Failed to get the content type from the response entity");
         }

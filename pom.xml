@@ -173,7 +173,7 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
-                <version>3.7.6</version>
+                <version>3.7.7</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.annotation</groupId>
@@ -199,38 +199,6 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-text</artifactId>
                 <version>1.13.1</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpasyncclient</artifactId>
-                <version>4.1.5</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>commons-logging</groupId>
-                        <artifactId>commons-logging</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpclient</artifactId>
-                <version>4.5.14</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>commons-logging</groupId>
-                        <artifactId>commons-logging</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpcore</artifactId>
-                <version>4.4.16</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpcore-nio</artifactId>
-                <version>4.4.16</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
@@ -300,17 +268,17 @@
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter-api</artifactId>
-                <version>5.13.0</version>
+                <version>5.13.1</version>
             </dependency>
             <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-commons</artifactId>
-                <version>1.13.0</version>
+                <version>1.13.1</version>
             </dependency>
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-java</artifactId>
-                <version>3.0.0</version>
+                <version>3.1.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
@@ -381,13 +349,13 @@
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
-                            <tag>3.3.9</tag>
-                            <digest>sha256:328783557e84e51043a8c6dd8aa235fbfdb492eee93d1d6d6b9b849a84d0b86b</digest>
+                            <tag>3.3.10</tag>
+                            <digest>sha256:833c6980b907a485be909752d6b9b0425d3710811e9b3521760e5db50ce21ea0</digest>
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
-                            <tag>1.2.0</tag>
-                            <digest>sha256:f7ed6ed0caa4b51c04bebf83bb381c796fb319b923dd68d88f873f8c03f3f353</digest>
+                            <tag>1.2.1</tag>
+                            <digest>sha256:7961754a49d5baa4be13259c0f21af5019c4e976a03806d6174e037352acbe55</digest>
                         </image>
                     </imageManagement>
                 </configuration>

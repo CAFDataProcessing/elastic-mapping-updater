@@ -16,13 +16,15 @@
 package com.github.cafdataprocessing.elastic.tools;
 
 import jakarta.annotation.Nonnull;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.util.Timeout;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
+
+import java.util.concurrent.TimeUnit;
 
 final class ElasticProvider
 {
@@ -36,17 +38,19 @@ final class ElasticProvider
         final String[] hosts = elasticSettings.getElasticSearchHosts().split(",");
         final HttpHost eshosts[] = new HttpHost[hosts.length];
         for (int i = 0; i < hosts.length; i++) {
-            eshosts[i] = new HttpHost(hosts[i].trim(), elasticSettings.getElasticSearchRestPort(), scheme);
+            eshosts[i] = new HttpHost(scheme, hosts[i].trim(), elasticSettings.getElasticSearchRestPort());
         }
         final RestClientBuilder restClientBuilder = RestClient.builder(eshosts);
-        restClientBuilder.setRequestConfigCallback(builder -> builder.setConnectTimeout(elasticSettings.getElasticSearchConnectTimeout())
-            .setSocketTimeout(elasticSettings.getElasticSearchSocketTimeout()));
+        restClientBuilder.setRequestConfigCallback(builder -> builder
+            .setConnectTimeout(Timeout.of(elasticSettings.getElasticSearchConnectTimeout(), TimeUnit.SECONDS))
+            .setResponseTimeout(Timeout.of(elasticSettings.getElasticSearchSocketTimeout(), TimeUnit.SECONDS)));
 
         final String username = elasticSettings.getElasticSearchUsername();
         final String password = elasticSettings.getElasticSearchPassword();
         if (credentialsSupplied(username, password)) {
-            final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
+            final var credentialsProvider = new BasicCredentialsProvider();
+            credentialsProvider.setCredentials(new AuthScope(null, -1),
+                new UsernamePasswordCredentials(username, password.toCharArray()));
 
             restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
                 .setDefaultCredentialsProvider(credentialsProvider));
