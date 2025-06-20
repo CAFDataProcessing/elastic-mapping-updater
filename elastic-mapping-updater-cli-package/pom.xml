@@ -28,6 +28,7 @@
     </parent>
 
     <artifactId>elastic-mapping-updater-cli-package</artifactId>
+    <name>elastic-mapping-updater-cli-package</name>
     <packaging>pom</packaging>
 
     <dependencies>

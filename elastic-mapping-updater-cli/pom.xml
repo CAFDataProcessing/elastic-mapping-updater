@@ -28,6 +28,7 @@
     </parent>
 
     <artifactId>elastic-mapping-updater-cli</artifactId>
+    <name>elastic-mapping-updater-cli</name>
 
     <dependencies>
         <dependency>
