@@ -78,12 +78,12 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>1.5.19</version>
+                <version>1.5.20</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.5.19</version>
+                <version>1.5.20</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -138,7 +138,7 @@
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>
-                <version>2.42.0</version>
+                <version>2.43.0</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -173,7 +173,7 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
-                <version>3.7.11</version>
+                <version>3.7.12</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.annotation</groupId>
@@ -274,7 +274,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-rest-client</artifactId>
-                <version>3.2.0</version>
+                <version>3.3.1</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
