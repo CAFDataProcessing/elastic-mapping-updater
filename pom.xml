@@ -78,12 +78,12 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>1.5.20</version>
+                <version>1.5.21</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.5.20</version>
+                <version>1.5.21</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -93,12 +93,12 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>2.20.0</version>
+                <version>2.20.1</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>2.20.0</version>
+                <version>2.20.1</version>
             </dependency>
             <dependency>
                 <groupId>com.github.cafapi.common</groupId>
@@ -138,7 +138,7 @@
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>
-                <version>2.43.0</version>
+                <version>2.44.0</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -163,7 +163,7 @@
             <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.19.0</version>
+                <version>1.20.0</version>
             </dependency>
             <dependency>
                 <groupId>info.picocli</groupId>
@@ -173,7 +173,7 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
-                <version>3.7.12</version>
+                <version>3.8.0</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.annotation</groupId>
@@ -253,12 +253,12 @@
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter-api</artifactId>
-                <version>6.0.0</version>
+                <version>6.0.1</version>
             </dependency>
             <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-commons</artifactId>
-                <version>6.0.0</version>
+                <version>6.0.1</version>
             </dependency>
             <dependency>
                 <groupId>org.opensearch.client</groupId>
@@ -274,7 +274,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-rest-client</artifactId>
-                <version>3.3.1</version>
+                <version>3.3.2</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
@@ -334,13 +334,13 @@
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
-                            <tag>3.4.0</tag>
-                            <digest>sha256:84b553316bff824042f552162c4d727c634dbffcc2a4bfd63f72efd56852791b</digest>
+                            <tag>3.4.1</tag>
+                            <digest>sha256:bf669ff9e784f0d6cd26f298ad7231d12adff5074571f0ca82064d8bdf9e6392</digest>
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
-                            <tag>1.4.1</tag>
-                            <digest>sha256:645019f43cae26eaed8ad8fb9084f632e38f118e16a69c60673c7b6d1ac2b979</digest>
+                            <tag>1.4.4</tag>
+                            <digest>sha256:593aadb6fdf1f5011e31a5c035c154d145022ff321245d585a04acb761d4d71a</digest>
                         </image>
                     </imageManagement>
                 </configuration>
