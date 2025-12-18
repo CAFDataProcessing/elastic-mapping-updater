@@ -78,12 +78,12 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>1.5.21</version>
+                <version>1.5.22</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.5.21</version>
+                <version>1.5.22</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -138,7 +138,7 @@
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>
-                <version>2.44.0</version>
+                <version>2.45.0</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -173,7 +173,7 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
-                <version>3.8.0</version>
+                <version>3.8.1</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.annotation</groupId>
@@ -193,12 +193,12 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.19.0</version>
+                <version>3.20.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-text</artifactId>
-                <version>1.14.0</version>
+                <version>1.15.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
@@ -223,12 +223,12 @@
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-api</artifactId>
-                <version>2.25.2</version>
+                <version>2.25.3</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-to-slf4j</artifactId>
-                <version>2.25.2</version>
+                <version>2.25.3</version>
             </dependency>
             <dependency>
                 <groupId>org.apiguardian</groupId>
@@ -263,7 +263,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-java</artifactId>
-                <version>3.2.0</version>
+                <version>3.4.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
@@ -274,7 +274,7 @@
             <dependency>
                 <groupId>org.opensearch.client</groupId>
                 <artifactId>opensearch-rest-client</artifactId>
-                <version>3.3.2</version>
+                <version>3.4.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-logging</groupId>
@@ -334,13 +334,13 @@
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
-                            <tag>3.4.1</tag>
-                            <digest>sha256:bf669ff9e784f0d6cd26f298ad7231d12adff5074571f0ca82064d8bdf9e6392</digest>
+                            <tag>4.0.0</tag>
+                            <digest>sha256:404f8063fab1de3397a38434a18611144ac08d8ba93a0b31dcbb07c16518d1d8</digest>
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
-                            <tag>1.4.4</tag>
-                            <digest>sha256:593aadb6fdf1f5011e31a5c035c154d145022ff321245d585a04acb761d4d71a</digest>
+                            <tag>2.0.1</tag>
+                            <digest>sha256:29cb3239b9932cfc800fe696cda4abc285fe67500bb6e11cb5008e1840c57b8e</digest>
                         </image>
                     </imageManagement>
                 </configuration>
