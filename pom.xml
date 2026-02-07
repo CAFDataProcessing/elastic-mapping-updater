@@ -78,12 +78,12 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>1.5.26</version>
+                <version>1.5.28</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.5.26</version>
+                <version>1.5.28</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -138,7 +138,7 @@
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>
-                <version>2.46.0</version>
+                <version>2.47.0</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -163,7 +163,7 @@
             <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.20.0</version>
+                <version>1.21.0</version>
             </dependency>
             <dependency>
                 <groupId>info.picocli</groupId>
@@ -334,13 +334,13 @@
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/opensuse-opensearch1</repository>
-                            <tag>4.1.0</tag>
-                            <digest>sha256:80d35876f9d675f8e8fb05e6aae71ecf628f4a0a235988e9c6ddf6a8116e6422</digest>
+                            <tag>4.1.1</tag>
+                            <digest>sha256:e98c37c216bb58435567171d2c7120cd6246c21436273083cc4348e527c0d959</digest>
                         </image>
                         <image>
                             <repository>${dockerHubPublic}/cafapi/oraclelinux-jre21</repository>
-                            <tag>2.1.1</tag>
-                            <digest>sha256:f125b783de44d3ea76f96d51ac689a6a6a9375c4daf731f5b7b308b33e0a5cf4</digest>
+                            <tag>2.1.2</tag>
+                            <digest>sha256:4916df8dd88ad471864eb861c59d6a5a8b23f7b03519d5a8ee9a1796544f3f37</digest>
                         </image>
                     </imageManagement>
                 </configuration>
