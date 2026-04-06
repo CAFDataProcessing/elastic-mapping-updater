@@ -43,7 +43,8 @@ final class ElasticProvider
         final RestClientBuilder restClientBuilder = RestClient.builder(eshosts);
         restClientBuilder.setRequestConfigCallback(builder -> builder
             .setConnectTimeout(Timeout.of(elasticSettings.getElasticSearchConnectTimeout(), TimeUnit.SECONDS))
-            .setResponseTimeout(Timeout.of(elasticSettings.getElasticSearchSocketTimeout(), TimeUnit.SECONDS)));
+            .setResponseTimeout(Timeout.of(elasticSettings.getElasticSearchSocketTimeout(), TimeUnit.SECONDS))
+            .setContentCompressionEnabled(false));
 
         final String username = elasticSettings.getElasticSearchUsername();
         final String password = elasticSettings.getElasticSearchPassword();
