@@ -399,12 +399,13 @@ public final class ElasticMappingUpdaterIT
 
         LOGGER.info("testEmptyTemplateMappingsProducesNoFalseRemovalWarnings - Creating index matching template {}", templateName);
         // Create an index with some data - dynamic mapping will populate real fields
-        final String jsonString = "{"
+        String jsonString = "{"
             + "'DOCUMENT_ID':1,"
             + "'PROCESSING_TIME':'2020-02-11',"
             + "'IS_HEAD_OF_FAMILY':true,"
             + "'CONTENT_SIZE':1024"
-            + "}".replaceAll("'", "\"");
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
 
         createIndex(indexName, "1", "1", jsonString);
 
