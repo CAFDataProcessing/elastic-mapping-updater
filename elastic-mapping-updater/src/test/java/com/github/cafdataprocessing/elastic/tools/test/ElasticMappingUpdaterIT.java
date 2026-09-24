@@ -441,6 +441,74 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
+    public void testDynamicObjectFieldWithNoDeclaredPropertiesProducesNoFalseChangeWarnings()
+        throws IOException, InterruptedException, ParseException
+    {
+        LOGGER.info("Running test 'testDynamicObjectFieldWithNoDeclaredPropertiesProducesNoFalseChangeWarnings'...");
+        final String templateName = "stored-search-template";
+        /*
+         * This template declares a "params" object field as "dynamic": true with no
+         * "properties" of its own - its sub-fields are populated dynamically via a
+         * "params_fields" dynamic_template (path_match: "params.*"). Once an index has
+         * some of those dynamically-added sub-fields, the whole "params" field should not
+         * be reported/treated as a property requiring change, since the template never
+         * declared any properties for it to compare against.
+         */
+        final String origTemplateSourceFile = "/template21.json";
+        final String indexName = "acme_search-000001";
+
+        LOGGER.info("testDynamicObjectFieldWithNoDeclaredPropertiesProducesNoFalseChangeWarnings - Creating initial template {}",
+                    templateName);
+
+        // Create a template with a "dynamic": true object field with no declared properties
+        putIndexTemplate(templateName, origTemplateSourceFile);
+
+        LOGGER.info("testDynamicObjectFieldWithNoDeclaredPropertiesProducesNoFalseChangeWarnings - Creating index matching template {}",
+                    templateName);
+        // Create an index with some data - dynamic mapping will populate "params.*" sub-fields
+        String jsonString = "{"
+            + "'params':{"
+            + "'mode':'search',"
+            + "'dateField':'PROCESSING_TIME'"
+            + "}"
+            + "}";
+        jsonString = jsonString.replaceAll("'", "\"");
+
+        createIndex(indexName, "1", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
+
+        // Capture log messages emitted by ElasticMappingUpdater while comparing mappings
+        final ch.qos.logback.classic.Logger updaterLogger =
+            (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ElasticMappingUpdater.class);
+        final ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> listAppender =
+            new ch.qos.logback.core.read.ListAppender<>();
+        listAppender.start();
+        updaterLogger.addAppender(listAppender);
+
+        try {
+            LOGGER.info(
+                "testDynamicObjectFieldWithNoDeclaredPropertiesProducesNoFalseChangeWarnings - Updating indexes matching template {}",
+                templateName);
+            updateIndex("testDynamicObjectFieldWithNoDeclaredPropertiesProducesNoFalseChangeWarnings", templateName);
+        } finally {
+            updaterLogger.detachAppender(listAppender);
+        }
+
+        final List<String> falseChangeMessages = listAppender.list.stream()
+            .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+            .filter(message -> message.contains("params"))
+            .collect(java.util.stream.Collectors.toList());
+
+        assertTrue(falseChangeMessages.isEmpty(),
+                   "testDynamicObjectFieldWithNoDeclaredPropertiesProducesNoFalseChangeWarnings - Expected no log messages "
+                   + "referencing 'params' since the template declares no properties for it, but got: " + falseChangeMessages);
+
+        // Verify the index mapping/data is unaffected
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
+    }
+
+    @Test
     public void testUpdateIndexesOfUnSupportedChangesInTemplate() throws IOException, GetIndexException, InterruptedException, ParseException {
         LOGGER.info("Running test 'testUpdateIndexesOfUnSupportedChangesInTemplate'...");
         final String templateName = "sample-template";

@@ -1,0 +1,32 @@
+{
+    "order": 0,
+    "version": 7030099,
+    "index_patterns": [
+        "*_search-000001"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": "1",
+            "auto_expand_replicas": "0-1"
+        }
+    },
+    "mappings": {
+        "properties": {
+            "params": {
+                "type": "object",
+                "dynamic": true
+            }
+        },
+        "dynamic_templates": [
+            {
+                "params_fields": {
+                    "path_match": "params.*",
+                    "mapping": {
+                        "type": "keyword"
+                    }
+                }
+            }
+        ]
+    },
+    "aliases": {}
+}
