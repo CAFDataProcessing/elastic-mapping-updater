@@ -255,14 +255,18 @@ public final class ElasticMappingUpdater
         }
         final Set<String> unsupportedParamChanges = new HashSet<>();
         final Map<String, Object> entriesOnlyInIndex = diff.entriesOnlyOnRight();
-        // Field parameters that are currently set on a field in the index are now being removed
-        entriesOnlyInIndex.entrySet().stream()
-                .filter(e -> isUnsupportedParam(e.getKey()))
-                .forEach(e -> {
-                        LOGGER.warn("Unsupported mapping change-field parameter being removed : {}:{}", e.getKey(), e.getValue());
-                        unsupportedParamChanges.add(e.getKey());
-                    }
-                );
+        // Field parameters that are currently set on a field in the index are now being removed.
+        // Skip when the template has no properties defined, otherwise every existing index field
+        // gets falsely flagged as being removed.
+        if (!templateMapping.isEmpty()) {
+            entriesOnlyInIndex.entrySet().stream()
+                    .filter(e -> isUnsupportedParam(e.getKey()))
+                    .forEach(e -> {
+                            LOGGER.warn("Unsupported mapping change-field parameter being removed : {}:{}", e.getKey(), e.getValue());
+                            unsupportedParamChanges.add(e.getKey());
+                        }
+                    );
+        }
         final Set<String> existingFields = findexMapping.keySet();
         final Map<String, Object> entriesOnlyInTemplate = diff.entriesOnlyOnLeft();
         // Field parameters that are not currently set on a field in the index are now being added
