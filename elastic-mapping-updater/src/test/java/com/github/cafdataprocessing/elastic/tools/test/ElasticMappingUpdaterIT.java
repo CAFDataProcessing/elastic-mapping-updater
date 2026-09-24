@@ -378,6 +378,68 @@ public final class ElasticMappingUpdaterIT
     }
 
     @Test
+    public void testEmptyTemplateMappingsProducesNoFalseRemovalWarnings()
+        throws IOException, InterruptedException, ParseException
+    {
+        LOGGER.info("Running test 'testEmptyTemplateMappingsProducesNoFalseRemovalWarnings'...");
+        final String templateName = "usage-initial-template";
+        /*
+         * This template has empty "mappings" ({}).
+         * Fields that already exist on a matching index (added via dynamic mapping) should
+         * not be logged as unsupported "being removed" changes, since the template defines
+         * no properties to compare against.
+         */
+        final String origTemplateSourceFile = "/template20.json";
+        final String indexName = "acme_usage-initial-000001";
+
+        LOGGER.info("testEmptyTemplateMappingsProducesNoFalseRemovalWarnings - Creating initial template {}", templateName);
+
+        // Create a template with empty mappings
+        putIndexTemplate(templateName, origTemplateSourceFile);
+
+        LOGGER.info("testEmptyTemplateMappingsProducesNoFalseRemovalWarnings - Creating index matching template {}", templateName);
+        // Create an index with some data - dynamic mapping will populate real fields
+        final String jsonString = "{"
+            + "'DOCUMENT_ID':1,"
+            + "'PROCESSING_TIME':'2020-02-11',"
+            + "'IS_HEAD_OF_FAMILY':true,"
+            + "'CONTENT_SIZE':1024"
+            + "}".replaceAll("'", "\"");
+
+        createIndex(indexName, "1", "1", jsonString);
+
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
+
+        // Capture WARN log messages emitted by ElasticMappingUpdater while comparing mappings
+        final ch.qos.logback.classic.Logger updaterLogger =
+            (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ElasticMappingUpdater.class);
+        final ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> listAppender =
+            new ch.qos.logback.core.read.ListAppender<>();
+        listAppender.start();
+        updaterLogger.addAppender(listAppender);
+
+        try {
+            LOGGER.info("testEmptyTemplateMappingsProducesNoFalseRemovalWarnings - Updating indexes matching template {}",
+                        templateName);
+            updateIndex("testEmptyTemplateMappingsProducesNoFalseRemovalWarnings", templateName);
+        } finally {
+            updaterLogger.detachAppender(listAppender);
+        }
+
+        final List<String> falseRemovalWarnings = listAppender.list.stream()
+            .filter(event -> event.getFormattedMessage().contains("being removed"))
+            .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+            .collect(java.util.stream.Collectors.toList());
+
+        assertTrue(falseRemovalWarnings.isEmpty(),
+                   "testEmptyTemplateMappingsProducesNoFalseRemovalWarnings - Expected no false 'being removed' "
+                   + "warnings for a template with empty mappings, but got: " + falseRemovalWarnings);
+
+        // Verify the index mapping/data is unaffected
+        verifyIndexData(indexName, QueryBuilders.matchAll().build().toQuery(), 1);
+    }
+
+    @Test
     public void testUpdateIndexesOfUnSupportedChangesInTemplate() throws IOException, GetIndexException, InterruptedException, ParseException {
         LOGGER.info("Running test 'testUpdateIndexesOfUnSupportedChangesInTemplate'...");
         final String templateName = "sample-template";
