@@ -330,28 +330,46 @@ public final class ElasticMappingUpdater
     }
 
     /**
-     * Checks whether the template defines any new parameters or modified values for the given field.
-     * Returns false if all flattened keys defined in the template for this field already match the index,
-     * meaning the unflattened difference was caused solely by index-side dynamic child fields.
+     * Checks whether the template defines any changes for the given field:
+     * 1. New parameters or modified values added in the template.
+     * 2. Parameters removed in the template from a template-managed field.
+     *
+     * Returns false if the only differences are dynamic unmanaged child fields in the index.
      */
     private static boolean hasTemplateFieldChanges(
             final String fieldName,
+            final Map<String, Object> templateMapping,
             final Map<String, Object> ftemplateMapping,
             final Map<String, Object> findexMapping
     ) {
         final String fieldPrefix = "/" + fieldName + "/";
         final String fieldExact = "/" + fieldName;
 
+        // 1. Check if the template added a new parameter/subfield or modified an existing value
         for (final Entry<String, Object> entry : ftemplateMapping.entrySet()) {
             final String key = entry.getKey();
             if (key.equals(fieldExact) || key.startsWith(fieldPrefix)) {
                 final Object indexVal = findexMapping.get(key);
                 if (!java.util.Objects.equals(entry.getValue(), indexVal)) {
-                    return true; // Template has a modified parameter or a new subfield
+                    return true;
                 }
             }
         }
-        return false; // Template has no changes for this field; difference is index-only dynamic fields
+
+        // 2. Check if a parameter was removed in the template from a template-managed field
+        for (final Entry<String, Object> entry : findexMapping.entrySet()) {
+            final String key = entry.getKey();
+            if (key.equals(fieldExact) || key.startsWith(fieldPrefix)) {
+                if (!ftemplateMapping.containsKey(key)) {
+                    // Key is in the index but absent from the template.
+                    // If the field is managed by the template, this is a genuine parameter removal.
+                    if (isFieldDefinedInTemplate(templateMapping, key)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean isUnsupportedParam(final String fieldPath)
@@ -408,7 +426,7 @@ public final class ElasticMappingUpdater
         final Map<String, Object> findexMapping = FlatMapUtil.flatten(indexMapping);
 
         // Prune fields whose differences are solely due to dynamic fields present in the index
-        allowedFieldDifferences.removeIf(field -> !hasTemplateFieldChanges(field, ftemplateMapping, findexMapping));
+        allowedFieldDifferences.removeIf(field -> !hasTemplateFieldChanges(field, templateMapping, ftemplateMapping, findexMapping));
 
         boolean unsupportedObjectChanges = false;
         if (!entriesDiffering.isEmpty()) {
