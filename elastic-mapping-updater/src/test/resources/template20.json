@@ -1,0 +1,17 @@
+{
+    "order": 0,
+    "version": 7030099,
+    "index_patterns": [
+        "*_usage-initial-000001"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": "1",
+            "auto_expand_replicas": "0-1"
+        }
+    },
+    "mappings": {},
+    "aliases": {
+        "{index}-latest": {}
+    }
+}

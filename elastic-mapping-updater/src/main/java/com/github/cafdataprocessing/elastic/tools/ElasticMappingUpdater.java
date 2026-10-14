@@ -255,9 +255,12 @@ public final class ElasticMappingUpdater
         }
         final Set<String> unsupportedParamChanges = new HashSet<>();
         final Map<String, Object> entriesOnlyInIndex = diff.entriesOnlyOnRight();
-        // Field parameters that are currently set on a field in the index are now being removed
+        // Field parameters that are currently set on a field in the index are now being removed.
+        // Ignore dynamic fields not managed by the template (e.g. inside dynamic objects or empty mappings)
+        // to prevent falsely flagged as being removed.
         entriesOnlyInIndex.entrySet().stream()
                 .filter(e -> isUnsupportedParam(e.getKey()))
+                .filter(e -> isFieldDefinedInTemplate(templateMapping, e.getKey()))
                 .forEach(e -> {
                         LOGGER.warn("Unsupported mapping change-field parameter being removed : {}:{}", e.getKey(), e.getValue());
                         unsupportedParamChanges.add(e.getKey());
@@ -286,6 +289,87 @@ public final class ElasticMappingUpdater
     {
         LOGGER.trace("Checking if {} is an existing field {}", key, existingFields);
         return existingFields.stream().filter(e -> e.startsWith(key)).count() != 0;
+    }
+
+    private static boolean isFieldDefinedInTemplate(final Map<String, Object> templateMapping, final String key)
+    {
+        LOGGER.trace("Checking if {} is defined in the template", key);
+        final String[] segments = key.split(Pattern.quote("/"));
+
+        Map<?, ?> currentContext = templateMapping;
+        int i = 1;
+
+        while (i < segments.length) {
+            final String fieldName = segments[i++];
+            final Object fieldObj = currentContext.get(fieldName);
+
+            // Field not declared in this context -> dynamic unmanaged field
+            if (!(fieldObj instanceof Map)) {
+                return false;
+            }
+
+            final Map<?, ?> fieldDef = (Map<?, ?>) fieldObj;
+
+            // If the path ends here or the next segment is a parameter (not "properties"),
+            // the field exists and is managed by the template.
+            if (i >= segments.length || !MAPPING_PROPS_KEY.equals(segments[i])) {
+                return true;
+            }
+
+            // Descend into the field's nested properties map
+            i++; // advance past "properties"
+            final Object nestedProps = fieldDef.get(MAPPING_PROPS_KEY);
+            if (!(nestedProps instanceof Map)) {
+                return false; // Field declared in template, but defines no child properties
+            }
+
+            currentContext = (Map<?, ?>) nestedProps;
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks whether the template defines any changes for the given field:
+     * 1. New parameters or modified values added in the template.
+     * 2. Parameters removed in the template from a template-managed field.
+     *
+     * Returns false if the only differences are dynamic unmanaged child fields in the index.
+     */
+    private static boolean hasTemplateFieldChanges(
+            final String fieldName,
+            final Map<String, Object> templateMapping,
+            final Map<String, Object> ftemplateMapping,
+            final Map<String, Object> findexMapping
+    ) {
+        final String fieldPrefix = "/" + fieldName + "/";
+        final String fieldExact = "/" + fieldName;
+
+        // 1. Check if the template added a new parameter/subfield or modified an existing value
+        for (final Entry<String, Object> entry : ftemplateMapping.entrySet()) {
+            final String key = entry.getKey();
+            if (key.equals(fieldExact) || key.startsWith(fieldPrefix)) {
+                final Object indexVal = findexMapping.get(key);
+                if (!java.util.Objects.equals(entry.getValue(), indexVal)) {
+                    return true;
+                }
+            }
+        }
+
+        // 2. Check if a parameter was removed in the template from a template-managed field
+        for (final Entry<String, Object> entry : findexMapping.entrySet()) {
+            final String key = entry.getKey();
+            if (key.equals(fieldExact) || key.startsWith(fieldPrefix)) {
+                if (!ftemplateMapping.containsKey(key)) {
+                    // Key is in the index but absent from the template.
+                    // If the field is managed by the template, this is a genuine parameter removal.
+                    if (isFieldDefinedInTemplate(templateMapping, key)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean isUnsupportedParam(final String fieldPath)
@@ -336,6 +420,13 @@ public final class ElasticMappingUpdater
         final Map<String, ValueDifference<Object>> entriesDiffering = diff.entriesDiffering();
         final Set<String> allowedFieldDifferences = new HashSet<>(entriesDiffering.keySet());
         final Set<String> unSupportedFieldDifferences = new HashSet<>();
+
+        // Flatten both mappings once for hierarchy-aware comparison
+        final Map<String, Object> ftemplateMapping = FlatMapUtil.flatten(templateMapping);
+        final Map<String, Object> findexMapping = FlatMapUtil.flatten(indexMapping);
+
+        // Prune fields whose differences are solely due to dynamic fields present in the index
+        allowedFieldDifferences.removeIf(field -> !hasTemplateFieldChanges(field, templateMapping, ftemplateMapping, findexMapping));
 
         boolean unsupportedObjectChanges = false;
         if (!entriesDiffering.isEmpty()) {
